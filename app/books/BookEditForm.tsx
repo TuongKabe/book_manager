@@ -1,0 +1,66 @@
+"use client";
+
+import { useState } from "react";
+import type { ChangeEvent } from "react";
+import type { BookRow } from "./BookListClient";
+
+const CONDITIONS = ["NEW", "LIKE_NEW", "VG", "GOOD", "FAIR", "POOR"];
+
+export default function BookEditForm({
+  book,
+  onClose,
+  onSaved,
+}: {
+  book: BookRow;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState({
+    title: book.title,
+    author: book.author ?? "",
+    category: book.category ?? "",
+    condition: book.condition ?? "VG",
+    listPriceVnd: book.listPriceVnd ?? "",
+    purchaseCostVnd: book.purchaseCostVnd ?? "",
+    notes: "",
+  });
+
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  async function submit() {
+    await fetch(`/api/books/${book.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: form.title,
+        author: form.author || null,
+        category: form.category || null,
+        condition: form.condition,
+        listPriceVnd: form.listPriceVnd ? Number(form.listPriceVnd) : null,
+        purchaseCostVnd: form.purchaseCostVnd ? Number(form.purchaseCostVnd) : null,
+      }),
+    });
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-md space-y-3 overflow-auto rounded-xl bg-white p-5">
+        <h2 className="text-lg font-bold">Sửa sách</h2>
+        <input value={form.title} onChange={set("title")} placeholder="Tiêu đề" className="w-full rounded border border-slate-300 px-3 py-2" />
+        <input value={form.author} onChange={set("author")} placeholder="Tác giả" className="w-full rounded border border-slate-300 px-3 py-2" />
+        <input value={form.category} onChange={set("category")} placeholder="Phân loại" className="w-full rounded border border-slate-300 px-3 py-2" />
+        <select value={form.condition} onChange={set("condition")} className="w-full rounded border border-slate-300 px-3 py-2">
+          {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <input value={form.listPriceVnd} onChange={set("listPriceVnd")} type="number" placeholder="Giá bán (đ)" className="w-full rounded border border-slate-300 px-3 py-2" />
+        <input value={form.purchaseCostVnd} onChange={set("purchaseCostVnd")} type="number" placeholder="Giá nhập (đ)" className="w-full rounded border border-slate-300 px-3 py-2" />
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="rounded bg-slate-200 px-4 py-2">Hủy</button>
+          <button onClick={submit} className="rounded bg-blue-600 px-4 py-2 text-white">Lưu</button>
+        </div>
+      </div>
+    </div>
+  );
+}
