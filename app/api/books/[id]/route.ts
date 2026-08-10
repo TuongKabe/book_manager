@@ -17,7 +17,9 @@ export async function PATCH(req: Request, { params }: Params) {
     if (key in body) data[key] = body[key] ? Number(body[key]) : null;
   }
   if ("status" in body) data.status = body.status;
-  if (body.status === "SOLD" && !body.soldDate) data.soldDate = new Date();
+  if (body.status === "SOLD") {
+    data.soldDate = body.soldDate ? new Date(body.soldDate) : new Date();
+  }
   if (body.status && body.status !== "SOLD") data.soldDate = null;
   const book = await prisma.book.update({ where: { id }, data });
   return NextResponse.json(book);
