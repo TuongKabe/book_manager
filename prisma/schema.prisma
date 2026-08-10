@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Purchase {
+  id        String   @id @default(cuid())
+  date      DateTime
+  supplier  String
+  totalCost Int
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  books     Book[]
+}
+
+model Book {
+  id              String    @id @default(cuid())
+  isbn            String?
+  barcode         String?
+  title           String
+  author          String?
+  category        String?
+  condition       String?
+  weightGrams     Int?
+  coverPhotoUrl   String?
+  defectsNote     String?
+  purchaseId      String?
+  purchase        Purchase? @relation(fields: [purchaseId], references: [id])
+  purchaseCostVnd Int?
+  listPriceVnd    Int?
+  status          String    @default("INTAKE")
+  soldDate        DateTime?
+  soldPriceVnd    Int?
+  soldChannel     String?
+  soldOrderId     String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  date      DateTime
+  channel   String?
+  totalVnd  Int?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  date      DateTime
+  category  String
+  amountVnd Int
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
