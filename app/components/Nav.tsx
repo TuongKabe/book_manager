@@ -55,6 +55,12 @@ export default function Nav() {
             <span className="text-lg">{item.icon}</span>{item.label}
           </Link>
         ))}
+        <button
+          onClick={logout}
+          className="flex flex-col items-center text-xs text-red-500"
+        >
+          <span className="text-lg">⏻</span>Đăng xuất
+        </button>
       </nav>
     </>
   );
