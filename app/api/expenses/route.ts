@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseDateOnly } from "@/lib/date";
 
 export async function GET() {
   const expenses = await prisma.expense.findMany({ orderBy: { date: "desc" } });
@@ -10,7 +11,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const expense = await prisma.expense.create({
     data: {
-      date: body.date ? new Date(body.date) : new Date(),
+      date: body.date ? parseDateOnly(body.date) : new Date(),
       category: String(body.category ?? ""),
       amountVnd: Number(body.amountVnd ?? 0),
       note: body.note ?? null,
