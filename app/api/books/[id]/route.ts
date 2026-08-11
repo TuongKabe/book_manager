@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseDateOnly } from "@/lib/date";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -18,7 +19,7 @@ export async function PATCH(req: Request, { params }: Params) {
   }
   if ("status" in body) data.status = body.status;
   if (body.status === "SOLD") {
-    data.soldDate = body.soldDate ? new Date(body.soldDate) : new Date();
+    data.soldDate = body.soldDate ? parseDateOnly(body.soldDate) : new Date();
   }
   if (body.status && body.status !== "SOLD") data.soldDate = null;
   const book = await prisma.book.update({ where: { id }, data });
