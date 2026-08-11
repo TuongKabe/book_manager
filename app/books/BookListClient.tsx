@@ -25,6 +25,7 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [editing, setEditing] = useState<BookRow | null>(null);
+  const [error, setError] = useState("");
 
   async function search() {
     const params = new URLSearchParams();
@@ -35,24 +36,37 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
   }
 
   async function markSold(book: BookRow) {
-    await fetch(`/api/books/${book.id}`, {
+    const res = await fetch(`/api/books/${book.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "SOLD" }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Có lỗi xảy ra");
+      return;
+    }
+    setError("");
     router.refresh();
     search();
   }
 
   async function remove(book: BookRow) {
     if (!confirm(`Xóa "${book.title}"?`)) return;
-    await fetch(`/api/books/${book.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/books/${book.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Có lỗi xảy ra");
+      return;
+    }
+    setError("");
     router.refresh();
     search();
   }
 
   return (
     <div className="space-y-3">
+      {error && <div className="rounded bg-red-100 px-3 py-2 text-sm text-red-700">{error}</div>}
       <div className="flex flex-wrap gap-2">
         <input
           value={q}
@@ -61,7 +75,7 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
           placeholder="Tìm tên / tác giả / ISBN"
           className="rounded border border-slate-300 px-3 py-2"
         />
-        <select value={status} onChange={(e) => { setStatus(e.target.value); }} onBlur={search} className="rounded border border-slate-300 px-3 py-2">
+        <select value={status} onChange={(e) => { setStatus(e.target.value); }} className="rounded border border-slate-300 px-3 py-2">
           <option value="">Tất cả</option>
           <option value="INTAKE">Nhập kho</option>
           <option value="LISTED">Đang bán</option>
@@ -70,6 +84,11 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
         <button onClick={search} className="rounded bg-blue-600 px-4 py-2 text-white">Tìm</button>
       </div>
 
+      {books.length === 0 ? (
+        <div className="rounded-xl border border-dashed bg-white p-8 text-center text-slate-400">
+          {q || status ? "Không tìm thấy sách" : "Chưa có sách — dùng Scan hoặc nhập kho"}
+        </div>
+      ) : (
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {books.map((book) => (
           <div key={book.id} className="rounded-xl border bg-white p-3 shadow-sm">
@@ -108,6 +127,7 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
           </div>
         ))}
       </div>
+      )}
 
       {editing && (
         <BookEditForm
