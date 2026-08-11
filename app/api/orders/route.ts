@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseDateOnly } from "@/lib/date";
 
 export async function GET() {
   const orders = await prisma.order.findMany({ orderBy: { createdAt: "desc" } });
@@ -10,7 +11,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const order = await prisma.order.create({
     data: {
-      date: body.date ? new Date(body.date) : new Date(),
+      date: body.date ? parseDateOnly(body.date) : new Date(),
       channel: body.channel ?? null,
       totalVnd: body.totalVnd ? Number(body.totalVnd) : null,
       note: body.note ?? null,
