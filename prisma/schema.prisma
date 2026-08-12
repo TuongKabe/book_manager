@@ -40,19 +40,27 @@ model Book {
   soldPriceVnd    Int?
   soldChannel     String?
   soldOrderId     String?
+  soldOrder       Order?    @relation("SoldBooks", fields: [soldOrderId], references: [id])
   notes           String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
 
 model Order {
-  id        String   @id @default(cuid())
-  date      DateTime
-  channel   String?
-  totalVnd  Int?
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  date            DateTime
+  customerName    String?
+  customerPhone   String?
+  customerAddress String?
+  channel         String?
+  totalVnd        Int?
+  shippingFee     Int?
+  shippingUnit    String?
+  weightGrams     Int?
+  note            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  books           Book[]   @relation("SoldBooks")
 }
 
 model Expense {
