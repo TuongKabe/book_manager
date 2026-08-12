@@ -1,16 +1,16 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { buildExcel, excelResponse, dateFormatter, safeFilename, type ExcelColumn } from "@/lib/excel";
+import { buildCsv, csvResponse, dateFormatter, safeFilename, type CsvColumn } from "@/lib/csv";
 import { parseDateRange, dateRangeWhere } from "@/lib/dateRange";
 
-const COLUMNS: ExcelColumn[] = [
-  { key: "date", label: "Ngày", width: 12, format: dateFormatter },
-  { key: "supplier", label: "Nhà cung cấp", width: 24 },
-  { key: "totalCost", label: "Tổng chi (đ)", width: 15 },
-  { key: "weightGrams", label: "Cân nặng (g)", width: 14 },
-  { key: "bookCount", label: "Số sách", width: 10 },
-  { key: "bookTitles", label: "Danh sách sách", width: 50 },
-  { key: "note", label: "Ghi chú", width: 30 },
+const COLUMNS: CsvColumn[] = [
+  { key: "date", label: "Ngày", format: dateFormatter },
+  { key: "supplier", label: "Nhà cung cấp" },
+  { key: "totalCost", label: "Tổng chi (đ)" },
+  { key: "weightGrams", label: "Cân nặng (g)" },
+  { key: "bookCount", label: "Số sách" },
+  { key: "bookTitles", label: "Danh sách sách" },
+  { key: "note", label: "Ghi chú" },
 ];
 
 export async function GET(req: NextRequest) {
@@ -36,6 +36,6 @@ export async function GET(req: NextRequest) {
     note: p.note,
   }));
 
-  const { buffer } = buildExcel([{ name: "Nhập hàng", rows, columns: COLUMNS }]);
-  return excelResponse(buffer, safeFilename("purchases", from, to));
+  const buffer = buildCsv(rows, COLUMNS);
+  return csvResponse(buffer, safeFilename("purchases", from, to));
 }

@@ -22,7 +22,14 @@ export default async function ExpensesPage({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Chi phí</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Chi phí</h1>
+          {from && to && (
+            <p className="text-sm text-slate-500">
+              Kỳ: <span className="font-medium">{from.toLocaleDateString("vi-VN")} → {to.toLocaleDateString("vi-VN")}</span>
+            </p>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <DateFilter />
           <ExportButton path="/api/export/expenses" />

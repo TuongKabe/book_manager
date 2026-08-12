@@ -104,6 +104,8 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
 
   const editingExpense = modalState?.mode === "edit" ? modalState.expense : undefined;
   const hasActiveFilter = selectedCats.size !== EXPENSE_CATEGORIES.length || minAmount || maxAmount || search;
+  const totalCount = expenses.length;
+  const activeFilterCount = (selectedCats.size !== EXPENSE_CATEGORIES.length ? 1 : 0) + (minAmount ? 1 : 0) + (maxAmount ? 1 : 0) + (search ? 1 : 0);
 
   return (
     <div className="space-y-4">
@@ -115,17 +117,27 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
 
       <div className="rounded-xl border bg-white p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-medium">Bộ lọc</h2>
-          {hasActiveFilter && (
-            <button onClick={resetFilters} className="text-xs text-blue-600 hover:underline">Đặt lại</button>
-          )}
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-medium">Bộ lọc</h2>
+            <span className={`rounded px-2 py-0.5 text-xs ${activeFilterCount > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
+              {activeFilterCount > 0 ? `Đang áp dụng ${activeFilterCount} bộ lọc` : "Không có bộ lọc"}
+            </span>
+          </div>
+          <button onClick={resetFilters} className="rounded border border-slate-300 bg-white px-3 py-1 text-xs hover:bg-slate-50">
+            ↺ Đặt lại
+          </button>
         </div>
         <div className="space-y-3">
           <div>
-            <p className="mb-1 text-xs text-slate-500">Danh mục</p>
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-xs text-slate-500">Danh mục ({selectedCats.size}/{EXPENSE_CATEGORIES.length})</p>
+              <div className="flex gap-1">
+                <button onClick={selectAll} className="rounded px-2 py-0.5 text-xs text-blue-600 hover:underline">Tất cả</button>
+                <span className="text-slate-300">|</span>
+                <button onClick={clearAll} className="rounded px-2 py-0.5 text-xs text-blue-600 hover:underline">Bỏ chọn</button>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={selectAll} className="rounded border border-slate-300 bg-slate-50 px-2 py-1 text-xs hover:bg-slate-100">Tất cả</button>
-              <button onClick={clearAll} className="rounded border border-slate-300 bg-slate-50 px-2 py-1 text-xs hover:bg-slate-100">Bỏ chọn</button>
               {EXPENSE_CATEGORIES.map((c) => {
                 const active = selectedCats.has(c);
                 return (
@@ -160,6 +172,13 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <p className="text-slate-500">
+          Hiển thị <span className="font-bold text-slate-900">{stats.count}</span> / {totalCount} mục
+          {hasActiveFilter && stats.count < totalCount && <span className="ml-2 text-xs text-amber-600">(đang ẩn {totalCount - stats.count} mục)</span>}
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Tổng (đang lọc)" value={stats.total.toLocaleString("vi-VN") + "đ"} color="red" />
         <StatTile label="Số mục" value={String(stats.count)} />
@@ -190,8 +209,16 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
       )}
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed bg-white p-8 text-center text-slate-400">
-          {hasActiveFilter ? "Không có chi phí khớp bộ lọc" : "Chưa có chi phí — bấm \"Thêm chi phí\""}
+        <div className="rounded-xl border border-dashed bg-white p-8 text-center">
+          {totalCount === 0 ? (
+            <p className="text-slate-400">Chưa có chi phí — bấm &quot;+ Thêm chi phí&quot;</p>
+          ) : (
+            <>
+              <p className="text-slate-500">Không có chi phí nào khớp bộ lọc hiện tại</p>
+              <p className="mt-1 text-xs text-slate-400">Có {totalCount} mục trong DB nhưng bị ẩn bởi {activeFilterCount} bộ lọc</p>
+              <button onClick={resetFilters} className="mt-3 rounded bg-blue-600 px-4 py-2 text-sm text-white">↺ Xóa tất cả bộ lọc</button>
+            </>
+          )}
         </div>
       ) : (
         <div className="max-h-[28rem] overflow-auto rounded-xl border bg-white">

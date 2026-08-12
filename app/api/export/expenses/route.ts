@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { buildExcel, excelResponse, dateFormatter, safeFilename, type ExcelColumn } from "@/lib/excel";
+import { buildCsv, csvResponse, dateFormatter, safeFilename, type CsvColumn } from "@/lib/csv";
 import { parseDateRange, dateRangeWhere } from "@/lib/dateRange";
 
-const COLUMNS: ExcelColumn[] = [
-  { key: "date", label: "Ngày", width: 12, format: dateFormatter },
-  { key: "category", label: "Loại", width: 15 },
-  { key: "amountVnd", label: "Số tiền (đ)", width: 15 },
-  { key: "note", label: "Ghi chú", width: 40 },
+const COLUMNS: CsvColumn[] = [
+  { key: "date", label: "Ngày", format: dateFormatter },
+  { key: "category", label: "Loại" },
+  { key: "amountVnd", label: "Số tiền (đ)" },
+  { key: "note", label: "Ghi chú" },
 ];
 
 export async function GET(req: NextRequest) {
@@ -18,6 +18,6 @@ export async function GET(req: NextRequest) {
   const where = dateRangeWhere("date", from, to);
 
   const expenses = await prisma.expense.findMany({ where, orderBy: { date: "desc" } });
-  const { buffer } = buildExcel([{ name: "Chi phí", rows: expenses, columns: COLUMNS }]);
-  return excelResponse(buffer, safeFilename("expenses", from, to));
+  const buffer = buildCsv(expenses, COLUMNS);
+  return csvResponse(buffer, safeFilename("expenses", from, to));
 }
