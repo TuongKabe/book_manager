@@ -8,14 +8,15 @@ datasource db {
 }
 
 model Purchase {
-  id        String   @id @default(cuid())
-  date      DateTime
-  supplier  String
-  totalCost Int
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  books     Book[]
+  id          String   @id @default(cuid())
+  date        DateTime
+  supplier    String
+  totalCost   Int
+  weightGrams Int?
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  books       Book[]
 }
 
 model Book {

@@ -13,8 +13,10 @@ type BookInfo = {
 
 export default function ISBNScanner({
   onFound,
+  autoStartKey = 0,
 }: {
   onFound: (isbn: string, book: BookInfo) => void;
+  autoStartKey?: number;
 }) {
   const [isbn, setIsbn] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -73,6 +75,15 @@ export default function ISBNScanner({
     if (!clean) return;
     lookup(clean);
   }
+
+  useEffect(() => {
+    if (autoStartKey > 0 && !scanning && cameraSupported !== false) {
+      queueMicrotask(() => {
+        setError("");
+        setScanning(true);
+      });
+    }
+  }, [autoStartKey, scanning, cameraSupported]);
 
   function handleScan(decodedText: string) {
     if (!scannerRef.current) return;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import PurchaseEditForm from "./PurchaseEditForm";
-import PurchaseBookScanner from "@/app/components/PurchaseBookScanner";
+import PurchaseModal from "@/app/components/PurchaseModal";
 
 type BookRow = { id: string; title: string; isbn: string | null; coverPhotoUrl: string | null; status: string };
 type PurchaseRow = {
@@ -10,6 +10,7 @@ type PurchaseRow = {
   date: Date | string;
   supplier: string;
   totalCost: number;
+  weightGrams: number | null;
   note: string | null;
   _count: { books: number };
   books: BookRow[];
@@ -17,32 +18,10 @@ type PurchaseRow = {
 
 export default function PurchaseListClient({ initialPurchases }: { initialPurchases: PurchaseRow[] }) {
   const [purchases, setPurchases] = useState(initialPurchases);
-  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), supplier: "", totalCost: "" });
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<PurchaseRow | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  async function create(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setSubmitting(true);
-    const res = await fetch("/api/purchases", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, totalCost: Number(form.totalCost || 0) }),
-    });
-    if (res.ok) {
-      const created = await res.json();
-      setPurchases((list) => [{ ...created, _count: { books: 0 }, books: [] }, ...list]);
-      setForm({ date: new Date().toISOString().slice(0, 10), supplier: "", totalCost: "" });
-      setExpandedId(created.id);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Có lỗi xảy ra");
-    }
-    setSubmitting(false);
-  }
 
   async function remove(p: PurchaseRow) {
     if (!confirm(`Xóa lô "${p.supplier}"?`)) return;
@@ -56,42 +35,30 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
     }
   }
 
-  function refreshPurchase(id: string) {
-    fetch(`/api/purchases/${id}`)
-      .then((r) => r.json())
-      .then((updated) => {
-        setPurchases((list) =>
-          list.map((p) => (p.id === id ? { ...p, _count: updated._count, books: updated.books } : p))
-        );
-      })
-      .catch(() => {});
+  function handleCreated(created: { id: string; supplier: string; date: Date | string; totalCost: number; weightGrams: number | null; note: string | null; _count: { books: number } }) {
+    setPurchases((list) => [
+      { ...created, books: [] },
+      ...list,
+    ]);
+    setExpandedId(created.id);
   }
 
   return (
     <div className="space-y-4">
       {error && <div className="rounded bg-red-100 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-      <form onSubmit={create} className="flex flex-wrap items-end gap-2 rounded-xl border bg-white p-4">
-        <label className="flex flex-col text-sm">
-          Ngày
-          <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="rounded border border-slate-300 px-3 py-2" />
-        </label>
-        <label className="flex flex-1 flex-col text-sm">
-          Nhà cung cấp
-          <input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} required className="rounded border border-slate-300 px-3 py-2" />
-        </label>
-        <label className="flex flex-col text-sm">
-          Tổng chi (đ)
-          <input type="number" value={form.totalCost} onChange={(e) => setForm({ ...form, totalCost: e.target.value })} className="rounded border border-slate-300 px-3 py-2" />
-        </label>
-        <button disabled={submitting} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">
-          {submitting ? "Đang thêm..." : "Thêm lô"}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="rounded bg-blue-600 px-4 py-2 text-white"
+        >
+          + Thêm lô nhập
         </button>
-      </form>
+      </div>
 
       {purchases.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-white p-8 text-center text-slate-400">
-          Chưa có lô nhập — tạo lô bên trên
+          Chưa có lô nhập — bấm &quot;Thêm lô nhập&quot; để tạo
         </div>
       ) : (
         <div className="space-y-3">
@@ -109,6 +76,7 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
                       <p className="font-semibold">{p.supplier}</p>
                       <p className="text-sm text-slate-500">
                         {new Date(p.date).toLocaleDateString("vi-VN")} · {p._count.books} cuốn · {p.totalCost.toLocaleString("vi-VN")}đ
+                        {p.weightGrams != null && ` · ${p.weightGrams.toLocaleString("vi-VN")}g`}
                       </p>
                     </div>
                   </div>
@@ -145,14 +113,8 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
                         </div>
                       </div>
                     ) : (
-                      <p className="mb-3 text-sm text-slate-400">Chưa có sách — quét barcode bên dưới để thêm</p>
+                      <p className="mb-3 text-sm text-slate-400">Chưa có sách</p>
                     )}
-
-                    <PurchaseBookScanner
-                      purchaseId={p.id}
-                      purchaseSupplier={p.supplier}
-                      onBookAdded={() => refreshPurchase(p.id)}
-                    />
                   </div>
                 )}
               </div>
@@ -161,12 +123,18 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
         </div>
       )}
 
+      <PurchaseModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreated={handleCreated}
+      />
+
       {editing && (
         <PurchaseEditForm
           purchase={editing}
           onClose={() => setEditing(null)}
           onSaved={(updated) => {
-            setPurchases((list) => list.map((x) => (x.id === updated.id ? updated : x)));
+            setPurchases((list) => list.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)));
             setEditing(null);
           }}
         />

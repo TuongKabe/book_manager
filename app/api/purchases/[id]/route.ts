@@ -21,6 +21,7 @@ export async function PATCH(req: Request, { params }: Params) {
   if ("date" in body) data.date = body.date ? parseDateOnly(body.date) : new Date();
   if ("supplier" in body) data.supplier = String(body.supplier ?? "");
   if ("totalCost" in body) data.totalCost = body.totalCost ? Number(body.totalCost) : 0;
+  if ("weightGrams" in body) data.weightGrams = body.weightGrams ? Number(body.weightGrams) : null;
   if ("note" in body) data.note = body.note ?? null;
   const purchase = await prisma.purchase.update({ where: { id }, data });
   return NextResponse.json(purchase);

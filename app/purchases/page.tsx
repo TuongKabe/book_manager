@@ -8,10 +8,11 @@ export default async function PurchasesPage() {
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { books: true } }, books: { select: { id: true, title: true, isbn: true, coverPhotoUrl: true, status: true } } },
   });
+  const serialized = purchases.map((p) => ({ ...p, weightGrams: p.weightGrams }));
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Nhập hàng</h1>
-      <PurchaseListClient initialPurchases={purchases} />
+      <PurchaseListClient initialPurchases={serialized} />
     </div>
   );
 }

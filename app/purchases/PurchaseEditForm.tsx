@@ -9,6 +9,7 @@ type PurchaseRow = {
   date: Date | string;
   supplier: string;
   totalCost: number;
+  weightGrams: number | null;
   note: string | null;
   _count: { books: number };
   books: { id: string; title: string; isbn: string | null; coverPhotoUrl: string | null; status: string }[];
@@ -27,6 +28,7 @@ export default function PurchaseEditForm({
     date: toDateInputValue(purchase.date),
     supplier: purchase.supplier,
     totalCost: String(purchase.totalCost ?? ""),
+    weightGrams: String(purchase.weightGrams ?? ""),
     note: purchase.note ?? "",
   });
   const [saving, setSaving] = useState(false);
@@ -42,6 +44,7 @@ export default function PurchaseEditForm({
         date: form.date,
         supplier: form.supplier,
         totalCost: form.totalCost ? Number(form.totalCost) : 0,
+        weightGrams: form.weightGrams ? Number(form.weightGrams) : null,
         note: form.note || null,
       }),
     });
@@ -69,6 +72,10 @@ export default function PurchaseEditForm({
       <label className="flex flex-col text-sm">
         Tổng chi (đ)
         <input type="number" value={form.totalCost} onChange={(e) => setForm({ ...form, totalCost: e.target.value })} className="rounded border border-slate-300 px-3 py-2" />
+      </label>
+      <label className="flex flex-col text-sm">
+        Cân nặng lô (g)
+        <input type="number" value={form.weightGrams} onChange={(e) => setForm({ ...form, weightGrams: e.target.value })} placeholder="vd: 5000" className="rounded border border-slate-300 px-3 py-2" />
       </label>
       <label className="flex flex-col text-sm">
         Ghi chú
