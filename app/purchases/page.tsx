@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import PurchaseListClient from "./PurchaseListClient";
 import DateFilter from "@/app/components/DateFilter";
+import ExportButton from "@/app/components/ExportButton";
 import { parseDateRange, dateRangeWhere } from "@/lib/dateRange";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,10 @@ export default async function PurchasesPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Nhập hàng</h1>
-        <DateFilter />
+        <div className="flex flex-wrap items-center gap-2">
+          <DateFilter />
+          <ExportButton path="/api/export/purchases" />
+        </div>
       </div>
       <PurchaseListClient initialPurchases={purchases} />
     </div>
