@@ -11,7 +11,7 @@ type PurchaseRow = {
   totalCost: number;
   note: string | null;
   _count: { books: number };
-  books: { id: string; title: string }[];
+  books: { id: string; title: string; isbn: string | null; coverPhotoUrl: string | null; status: string }[];
 };
 
 export default function PurchaseEditForm({

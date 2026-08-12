@@ -4,6 +4,16 @@ import { parseDateOnly } from "@/lib/date";
 
 type Params = { params: Promise<{ id: string }> };
 
+export async function GET(_req: Request, { params }: Params) {
+  const { id } = await params;
+  const purchase = await prisma.purchase.findUnique({
+    where: { id },
+    include: { _count: { select: { books: true } }, books: { select: { id: true, title: true, isbn: true, coverPhotoUrl: true, status: true } } },
+  });
+  if (!purchase) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(purchase);
+}
+
 export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params;
   const body = await req.json();

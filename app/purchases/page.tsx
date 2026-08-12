@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default async function PurchasesPage() {
   const purchases = await prisma.purchase.findMany({
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { books: true } }, books: { select: { id: true, title: true } } },
+    include: { _count: { select: { books: true } }, books: { select: { id: true, title: true, isbn: true, coverPhotoUrl: true, status: true } } },
   });
   return (
     <div className="space-y-4">

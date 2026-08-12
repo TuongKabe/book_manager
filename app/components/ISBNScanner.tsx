@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useId } from "react";
+import { useEffect, useRef, useState, useId, useCallback } from "react";
 import type { Html5Qrcode } from "html5-qrcode";
 
 type BookInfo = {
@@ -26,14 +26,17 @@ export default function ISBNScanner({
   const rawId = useId();
   const containerId = `scanner-${rawId.replace(/:/g, "")}`;
 
-  async function lookup(code: string) {
+  const onFoundRef = useRef(onFound);
+  useEffect(() => { onFoundRef.current = onFound; });
+
+  const lookup = useCallback(async (code: string) => {
     setError("");
     setLooking(true);
     try {
       const res = await fetch(`/api/lookup?isbn=${encodeURIComponent(code)}`);
       const data = await res.json();
       if (res.ok && data.ok && data.book) {
-        onFound(code, data.book);
+        onFoundRef.current(code, data.book);
       } else if (res.status === 400) {
         setError("ISBN không hợp lệ");
       } else {
@@ -43,7 +46,7 @@ export default function ISBNScanner({
       setError("Lỗi kết nối — thử lại");
     }
     setLooking(false);
-  }
+  }, []);
 
   function handleManual() {
     const clean = isbn.replace(/[- ]/g, "");
