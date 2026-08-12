@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import BookEditForm from "./BookEditForm";
 
 type Purchase = { id: string; supplier: string; date: Date | string } | null;
@@ -19,8 +18,15 @@ export type BookRow = {
   purchase: Purchase;
 };
 
+const fmt = (n: number) => n.toLocaleString("vi-VN");
+
+const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
+  INTAKE: { label: "Nhập kho", color: "text-slate-700", bg: "bg-slate-200" },
+  LISTED: { label: "Đang bán", color: "text-blue-700", bg: "bg-blue-100" },
+  SOLD: { label: "Đã bán", color: "text-green-700", bg: "bg-green-100" },
+};
+
 export default function BookListClient({ initialBooks }: { initialBooks: BookRow[] }) {
-  const router = useRouter();
   const [books, setBooks] = useState(initialBooks);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
@@ -39,9 +45,54 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
   }
 
   useEffect(() => {
-    fetchBooks(q, status);
+    queueMicrotask(() => fetchBooks(q, status));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  const stats = useMemo(() => {
+    const total = books.length;
+    const totalCost = books.reduce((s, b) => s + (b.purchaseCostVnd ?? 0), 0);
+    const totalPrice = books.reduce((s, b) => s + (b.listPriceVnd ?? 0), 0);
+    const soldBooks = books.filter((b) => b.status === "SOLD");
+    const listedBooks = books.filter((b) => b.status === "LISTED");
+    const intakeBooks = books.filter((b) => b.status === "INTAKE");
+    const soldRevenue = soldBooks.reduce((s, b) => s + (b.listPriceVnd ?? 0), 0);
+    const soldCost = soldBooks.reduce((s, b) => s + (b.purchaseCostVnd ?? 0), 0);
+    const listedValue = listedBooks.reduce((s, b) => s + (b.listPriceVnd ?? 0), 0);
+    const listedCost = listedBooks.reduce((s, b) => s + (b.purchaseCostVnd ?? 0), 0);
+    const potentialProfit = totalPrice - totalCost;
+    const realizedProfit = soldRevenue - soldCost;
+    const listedPotentialProfit = listedValue - listedCost;
+    return {
+      total,
+      totalCost,
+      totalPrice,
+      potentialProfit,
+      realizedProfit,
+      soldCount: soldBooks.length,
+      listedCount: listedBooks.length,
+      intakeCount: intakeBooks.length,
+      soldRevenue,
+      listedValue,
+      listedPotentialProfit,
+    };
+  }, [books]);
+
+  const categoryBreakdown = useMemo(() => {
+    const map = new Map<string, { count: number; cost: number; price: number }>();
+    for (const b of books) {
+      const key = b.category ?? "Khác";
+      const ex = map.get(key) ?? { count: 0, cost: 0, price: 0 };
+      ex.count += 1;
+      ex.cost += b.purchaseCostVnd ?? 0;
+      ex.price += b.listPriceVnd ?? 0;
+      map.set(key, ex);
+    }
+    return Array.from(map.entries())
+      .map(([category, data]) => ({ category, ...data, profit: data.price - data.cost }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [books]);
 
   async function markSold(book: BookRow) {
     const res = await fetch(`/api/books/${book.id}`, {
@@ -70,9 +121,76 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
     fetchBooks(q, status);
   }
 
+  const maxCatCount = Math.max(...categoryBreakdown.map((c) => c.count), 1);
+
   return (
     <div className="space-y-3">
       {error && <div className="rounded bg-red-100 px-3 py-2 text-sm text-red-700">{error}</div>}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile label="Tổng sách" value={String(stats.total)} sub="trong kỳ" />
+        <StatTile label="Tổng giá nhập" value={fmt(stats.totalCost) + "đ"} color="amber" />
+        <StatTile label="Tổng giá bán" value={fmt(stats.totalPrice) + "đ"} color="blue" />
+        <StatTile
+          label="Lợi nhuận tiềm năng"
+          value={fmt(stats.potentialProfit) + "đ"}
+          color={stats.potentialProfit >= 0 ? "green" : "red"}
+          sub={`Đã thực hiện: ${fmt(stats.realizedProfit)}đ`}
+        />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border bg-white p-4">
+          <h2 className="mb-2 text-sm font-medium">Phân bổ theo trạng thái</h2>
+          {stats.total === 0 ? (
+            <p className="text-xs text-slate-400">Chưa có dữ liệu</p>
+          ) : (
+            <div className="space-y-2">
+              {(["INTAKE", "LISTED", "SOLD"] as const).map((s) => {
+                const cfg = STATUS_LABEL[s];
+                const count = s === "INTAKE" ? stats.intakeCount : s === "LISTED" ? stats.listedCount : stats.soldCount;
+                const pct = stats.total > 0 ? (count / stats.total) * 100 : 0;
+                const value = s === "INTAKE" ? 0 : s === "LISTED" ? stats.listedValue : stats.soldRevenue;
+                return (
+                  <div key={s} className="flex items-center gap-2 text-sm">
+                    <span className={`w-20 shrink-0 rounded ${cfg.bg} px-2 py-0.5 text-center text-xs ${cfg.color}`}>{cfg.label}</span>
+                    <div className="h-5 flex-1 rounded bg-slate-100">
+                      <div className={`h-5 rounded ${s === "SOLD" ? "bg-green-400" : s === "LISTED" ? "bg-blue-400" : "bg-slate-400"}`} style={{ width: `${Math.max(pct, count > 0 ? 2 : 0)}%` }} />
+                    </div>
+                    <span className="w-16 text-right text-sm font-medium">{count}</span>
+                    <span className="w-24 text-right text-xs text-slate-500">{value > 0 ? fmt(value) + "đ" : "—"}</span>
+                  </div>
+                );
+              })}
+              <div className="mt-2 flex items-center justify-between border-t pt-2 text-xs text-slate-500">
+                <span>Đang bán giá trị tiềm năng: <strong className="text-blue-700">{fmt(stats.listedPotentialProfit)}đ</strong></span>
+                <span>Đã bán lợi nhuận: <strong className="text-green-700">{fmt(stats.realizedProfit)}đ</strong></span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-white p-4">
+          <h2 className="mb-2 text-sm font-medium">Top 5 phân loại</h2>
+          {categoryBreakdown.length === 0 ? (
+            <p className="text-xs text-slate-400">Chưa có dữ liệu</p>
+          ) : (
+            <div className="space-y-1.5">
+              {categoryBreakdown.map((c) => (
+                <div key={c.category} className="flex items-center gap-2 text-sm">
+                  <span className="w-24 shrink-0 text-slate-700">{c.category}</span>
+                  <div className="h-4 flex-1 rounded bg-slate-100">
+                    <div className="h-4 rounded bg-blue-400" style={{ width: `${(c.count / maxCatCount) * 100}%` }} />
+                  </div>
+                  <span className="w-10 text-right text-xs">{c.count}</span>
+                  <span className="w-20 text-right text-xs text-slate-500">{fmt(c.price)}đ</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <input
           value={q}
@@ -82,7 +200,7 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
           className="rounded border border-slate-300 px-3 py-2"
         />
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded border border-slate-300 px-3 py-2">
-          <option value="">Tất cả</option>
+          <option value="">Tất cả trạng thái</option>
           <option value="INTAKE">Nhập kho</option>
           <option value="LISTED">Đang bán</option>
           <option value="SOLD">Đã bán</option>
@@ -144,6 +262,17 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
           onSaved={() => { setEditing(null); fetchBooks(q, status); }}
         />
       )}
+    </div>
+  );
+}
+
+function StatTile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: "green" | "red" | "blue" | "amber" }) {
+  const valueColor = color === "green" ? "text-green-700" : color === "red" ? "text-red-700" : color === "blue" ? "text-blue-700" : color === "amber" ? "text-amber-700" : "text-slate-900";
+  return (
+    <div className="rounded-xl border bg-white p-4">
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className={`mt-1 text-xl font-bold ${valueColor}`}>{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
     </div>
   );
 }
