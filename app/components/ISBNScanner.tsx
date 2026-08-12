@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useId, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Html5Qrcode } from "html5-qrcode";
 
 type BookInfo = {
@@ -11,25 +11,27 @@ type BookInfo = {
   description: string;
 };
 
+let globalId = 0;
+
 export default function ISBNScanner({
   onFound,
-  onManualSubmit,
 }: {
   onFound: (isbn: string, book: BookInfo) => void;
-  onManualSubmit?: (isbn: string) => void;
 }) {
   const [isbn, setIsbn] = useState("");
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState("");
   const [looking, setLooking] = useState(false);
+  const [containerId] = useState(() => `scanner-${++globalId}`);
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const rawId = useId();
-  const containerId = `scanner-${rawId.replace(/:/g, "")}`;
-
   const onFoundRef = useRef(onFound);
+  const processingRef = useRef(false);
+
   useEffect(() => { onFoundRef.current = onFound; });
 
-  const lookup = useCallback(async (code: string) => {
+  async function lookup(code: string) {
+    if (processingRef.current) return;
+    processingRef.current = true;
     setError("");
     setLooking(true);
     try {
@@ -46,55 +48,53 @@ export default function ISBNScanner({
       setError("Lỗi kết nối — thử lại");
     }
     setLooking(false);
-  }, []);
+    processingRef.current = false;
+  }
 
   function handleManual() {
     const clean = isbn.replace(/[- ]/g, "");
     if (!clean) return;
-    if (onManualSubmit) {
-      onManualSubmit(clean);
-    } else {
-      lookup(clean);
-    }
+    lookup(clean);
   }
 
   useEffect(() => {
-    let cancelled = false;
     if (!scanning) return;
-    const el = document.getElementById(containerId);
-    if (!el) return;
+    let stopped = false;
 
     (async () => {
       try {
         const { Html5Qrcode } = await import("html5-qrcode");
-        if (cancelled) return;
+        if (stopped) return;
+
+        const el = document.getElementById(containerId);
+        if (!el) return;
 
         const scanner = new Html5Qrcode(containerId);
         scannerRef.current = scanner;
 
         await scanner.start(
           { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: { width: 280, height: 120 },
-            aspectRatio: 1.5,
-          },
+          { fps: 10, qrbox: { width: 280, height: 120 } },
           (decodedText) => {
-            scanner.stop().catch(() => {});
-            setScanning(false);
+            if (stopped) return;
+            stopped = true;
+            try { scanner.stop(); } catch {}
+            try { scanner.clear(); } catch {}
+            scannerRef.current = null;
             const clean = decodedText.replace(/[- ]/g, "");
             setIsbn(clean);
+            setScanning(false);
             lookup(clean);
           },
           () => {},
         );
       } catch (err: unknown) {
-        if (cancelled) return;
+        if (stopped) return;
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes("NotAllowedError") || msg.includes("Permission")) {
           setError("Camera bị từ chối — cho phép quyền camera trong trình duyệt");
         } else if (msg.includes("NotFoundError") || msg.includes("DevicesNotFound")) {
-          setError("Không tìm thấy camera — kiểm tra thiết bị");
+          setError("Không tìm thấy camera");
         } else {
           setError("Không mở được camera — nhập ISBN tay bên dưới");
         }
@@ -103,24 +103,20 @@ export default function ISBNScanner({
     })();
 
     return () => {
-      cancelled = true;
+      stopped = true;
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current.clear();
+        try { scannerRef.current.stop(); } catch {}
+        try { scannerRef.current.clear(); } catch {}
         scannerRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanning, containerId]);
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <button
-          onClick={() => {
-            setError("");
-            setScanning((s) => !s);
-          }}
+          onClick={() => { setError(""); setScanning((s) => !s); }}
           className="rounded bg-blue-600 px-4 py-2 text-sm text-white"
         >
           {scanning ? "Dừng quét" : "📷 Quét barcode"}
@@ -147,18 +143,13 @@ export default function ISBNScanner({
         <div className="overflow-hidden rounded-xl border bg-black">
           <div id={containerId} className="mx-auto max-w-md" />
           <p className="p-2 text-center text-xs text-slate-400">
-            Hướng camera vào barcode/ISBN trên bìa sách
+            Hướng camera vào barcode trên bìa sách
           </p>
         </div>
       )}
 
-      {error && (
-        <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-      )}
-
-      {looking && (
-        <p className="text-sm text-blue-600">Đang tra cứu sách...</p>
-      )}
+      {error && <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {looking && <p className="text-sm text-blue-600">Đang tra cứu sách...</p>}
     </div>
   );
 }
