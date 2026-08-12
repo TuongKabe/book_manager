@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import PurchaseEditForm from "./PurchaseEditForm";
+import PurchaseBookScanner from "@/app/components/PurchaseBookScanner";
 
 type PurchaseRow = {
   id: string;
@@ -17,6 +18,7 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
   const [purchases, setPurchases] = useState(initialPurchases);
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), supplier: "", totalCost: "" });
   const [editing, setEditing] = useState<PurchaseRow | null>(null);
+  const [scanningPurchase, setScanningPurchase] = useState<PurchaseRow | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -49,6 +51,17 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Có lỗi xảy ra");
     }
+  }
+
+  function refreshPurchase(id: string) {
+    fetch(`/api/purchases/${id}`)
+      .then((r) => r.json())
+      .then((updated) => {
+        setPurchases((list) =>
+          list.map((p) => (p.id === id ? { ...p, _count: updated._count, books: updated.books } : p))
+        );
+      })
+      .catch(() => {});
   }
 
   return (
@@ -91,8 +104,23 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
               )}
               <div className="mt-2 flex gap-2">
                 <button onClick={() => setEditing(p)} className="rounded bg-slate-100 px-3 py-1 text-sm">Sửa</button>
+                <button
+                  onClick={() => setScanningPurchase(scanningPurchase?.id === p.id ? null : p)}
+                  className={`rounded px-3 py-1 text-sm ${scanningPurchase?.id === p.id ? "bg-blue-100 text-blue-700" : "bg-blue-600 text-white"}`}
+                >
+                  {scanningPurchase?.id === p.id ? "Đóng" : "📷 Quét sách"}
+                </button>
                 <button onClick={() => remove(p)} className="rounded bg-red-100 px-3 py-1 text-sm text-red-700">Xóa</button>
               </div>
+              {scanningPurchase?.id === p.id && (
+                <div className="mt-3">
+                  <PurchaseBookScanner
+                    purchaseId={p.id}
+                    purchaseSupplier={p.supplier}
+                    onBookAdded={() => refreshPurchase(p.id)}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>
