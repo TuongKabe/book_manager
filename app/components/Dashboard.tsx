@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 
-type Period = "thisMonth" | "lastMonth" | "thisQuarter" | "lastQuarter" | "thisYear" | "lastYear" | "custom";
+type Period = "today" | "thisMonth" | "lastMonth" | "thisQuarter" | "lastQuarter" | "thisYear" | "lastYear" | "custom";
 
 const PERIODS: { value: Period; label: string }[] = [
+  { value: "today", label: "Hôm nay" },
   { value: "thisMonth", label: "Tháng này" },
   { value: "lastMonth", label: "Tháng trước" },
   { value: "thisQuarter", label: "Quý này" },
@@ -66,6 +68,12 @@ function getPeriodDates(period: Period, customFrom?: string, customTo?: string):
 
   let from: Date, to: Date, label: string;
   switch (period) {
+    case "today": {
+      from = new Date(y, m, now.getDate());
+      to = new Date(y, m, now.getDate(), 23, 59, 59);
+      label = `Hôm nay ${now.getDate()}/${m + 1}/${y}`;
+      break;
+    }
     case "thisMonth":
       from = new Date(y, m, 1);
       to = new Date(y, m + 1, 0, 23, 59, 59);
@@ -110,6 +118,10 @@ function getPeriodDates(period: Period, customFrom?: string, customTo?: string):
   return { from, to, label };
 }
 
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 const fmt = (n: number) => n.toLocaleString("vi-VN");
 const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString("vi-VN");
 const monthLabel = (m: string) => {
@@ -118,7 +130,7 @@ const monthLabel = (m: string) => {
 };
 
 export default function Dashboard() {
-  const [period, setPeriod] = useState<Period>("thisMonth");
+  const [period, setPeriod] = useState<Period>("today");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [data, setData] = useState<DashboardData | null>(null);
@@ -149,10 +161,16 @@ export default function Dashboard() {
   const maxRevenue = data ? Math.max(...data.monthly.map((m) => m.revenue), 1) : 1;
   const maxExpense = data ? Math.max(...data.topExpenses.map((e) => e.total), 1) : 1;
 
+  const ordersHref = `/orders?from=${isoDate(from)}&to=${isoDate(to)}`;
+  const expensesHref = `/expenses?from=${isoDate(from)}&to=${isoDate(to)}`;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          {label && <p className="text-sm text-slate-500">Kỳ: <span className="font-medium text-slate-700">{label}</span></p>}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <select value={period} onChange={(e) => setPeriod(e.target.value as Period)} className="rounded border border-slate-300 px-3 py-2 text-sm">
             {PERIODS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -166,8 +184,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-
-      {label && <p className="text-sm text-slate-500">Kỳ: <span className="font-medium text-slate-700">{label}</span></p>}
 
       {error && <div className="rounded bg-red-100 px-3 py-2 text-sm text-red-700">{error}</div>}
 
@@ -215,7 +231,7 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
-            <div className="mt-3 flex gap-4 border-t pt-2 text-xs text-slate-500">
+            <div className="mt-3 flex flex-wrap gap-4 border-t pt-2 text-xs text-slate-500">
               <span className="flex items-center gap-1"><span className="h-2 w-3 rounded bg-green-500" /> Doanh thu</span>
               <span className="flex items-center gap-1"><span className="h-2 w-3 rounded bg-red-400" /> Chi phí</span>
               <span className="ml-auto">Tổng: {fmt(data.monthly.reduce((s, m) => s + m.revenue, 0))}đ doanh thu / {fmt(data.monthly.reduce((s, m) => s + m.cost, 0))}đ chi phí</span>
@@ -240,7 +256,7 @@ export default function Dashboard() {
               )}
             </Panel>
 
-            <Panel title="Chi phí theo loại" subtitle={`Tổng ${fmt(data.stats.expenseTotal)}đ`}>
+            <Panel title="Chi phí theo loại" subtitle={`Tổng ${fmt(data.stats.expenseTotal)}đ`} viewAllHref={expensesHref}>
               {data.topExpenses.length === 0 ? (
                 <Empty text="Chưa có chi phí trong kỳ" />
               ) : (
@@ -259,61 +275,57 @@ export default function Dashboard() {
             </Panel>
           </div>
 
-          <Panel title="Đơn hàng gần đây" subtitle={`${data.stats.orderCount} đơn trong kỳ`}>
+          <Panel title="Đơn hàng gần đây" subtitle={`${data.stats.orderCount} đơn trong kỳ`} viewAllHref={ordersHref}>
             {data.recentOrders.length === 0 ? (
               <Empty text="Chưa có đơn hàng" />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-3 py-2">Ngày</th>
-                      <th className="px-3 py-2">Khách</th>
-                      <th className="px-3 py-2">Kênh</th>
-                      <th className="px-3 py-2 text-right">Tổng</th>
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Ngày</th>
+                    <th className="px-3 py-2">Khách</th>
+                    <th className="px-3 py-2">Kênh</th>
+                    <th className="px-3 py-2 text-right">Tổng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.recentOrders.map((o) => (
+                    <tr key={o.id} className="border-b hover:bg-slate-50">
+                      <td className="px-3 py-2">{fmtDate(o.date)}</td>
+                      <td className="px-3 py-2">{o.customer ?? "—"}</td>
+                      <td className="px-3 py-2">{o.channel ?? "—"}</td>
+                      <td className="px-3 py-2 text-right font-medium">{o.total != null ? `${fmt(o.total)}đ` : "—"}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {data.recentOrders.map((o) => (
-                      <tr key={o.id} className="border-b">
-                        <td className="px-3 py-2">{fmtDate(o.date)}</td>
-                        <td className="px-3 py-2">{o.customer ?? "—"}</td>
-                        <td className="px-3 py-2">{o.channel ?? "—"}</td>
-                        <td className="px-3 py-2 text-right font-medium">{o.total != null ? `${fmt(o.total)}đ` : "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             )}
           </Panel>
 
-          <Panel title="Chi phí gần đây" subtitle={`Tổng ${fmt(data.stats.expenseTotal)}đ`}>
+          <Panel title="Chi phí gần đây" subtitle={`Tổng ${fmt(data.stats.expenseTotal)}đ`} viewAllHref={expensesHref}>
             {data.recentExpenses.length === 0 ? (
               <Empty text="Chưa có chi phí" />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-3 py-2">Ngày</th>
-                      <th className="px-3 py-2">Loại</th>
-                      <th className="px-3 py-2">Ghi chú</th>
-                      <th className="px-3 py-2 text-right">Số tiền</th>
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Ngày</th>
+                    <th className="px-3 py-2">Loại</th>
+                    <th className="px-3 py-2">Ghi chú</th>
+                    <th className="px-3 py-2 text-right">Số tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.recentExpenses.map((e) => (
+                    <tr key={e.id} className="border-b hover:bg-slate-50">
+                      <td className="px-3 py-2">{fmtDate(e.date)}</td>
+                      <td className="px-3 py-2">{e.category}</td>
+                      <td className="px-3 py-2 text-slate-500">{e.note ?? "—"}</td>
+                      <td className="px-3 py-2 text-right font-medium">{fmt(e.amount)}đ</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {data.recentExpenses.map((e) => (
-                      <tr key={e.id} className="border-b">
-                        <td className="px-3 py-2">{fmtDate(e.date)}</td>
-                        <td className="px-3 py-2">{e.category}</td>
-                        <td className="px-3 py-2 text-slate-500">{e.note ?? "—"}</td>
-                        <td className="px-3 py-2 text-right font-medium">{fmt(e.amount)}đ</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             )}
           </Panel>
         </>
@@ -333,14 +345,20 @@ function StatCard({ label, value, sub, color, highlight }: { label: string; valu
   );
 }
 
-function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Panel({ title, subtitle, viewAllHref, children, scrollable }: { title: string; subtitle?: string; viewAllHref?: string; children: React.ReactNode; scrollable?: boolean }) {
   return (
     <div className="rounded-xl border bg-white p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{title}</h2>
-        {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+        {viewAllHref ? (
+          <Link href={viewAllHref} className="text-xs text-blue-600 hover:underline">Xem tất cả →</Link>
+        ) : (
+          subtitle && <p className="text-xs text-slate-400">{subtitle}</p>
+        )}
       </div>
-      {children}
+      <div className={scrollable === false ? "" : "max-h-80 overflow-auto"}>
+        {children}
+      </div>
     </div>
   );
 }
