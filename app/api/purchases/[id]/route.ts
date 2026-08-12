@@ -8,7 +8,7 @@ export async function GET(_req: Request, { params }: Params) {
   const { id } = await params;
   const purchase = await prisma.purchase.findUnique({
     where: { id },
-    include: { _count: { select: { books: true } }, books: { select: { id: true, title: true, isbn: true, coverPhotoUrl: true, status: true } } },
+    include: { _count: { select: { books: true } }, books: { select: { id: true, title: true, author: true, isbn: true, coverPhotoUrl: true, condition: true, status: true } } },
   });
   if (!purchase) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(purchase);

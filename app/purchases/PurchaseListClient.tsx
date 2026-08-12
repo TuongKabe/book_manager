@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import PurchaseEditForm from "./PurchaseEditForm";
-import PurchaseModal from "@/app/components/PurchaseModal";
+import PurchaseModal, { type InitialPurchase } from "@/app/components/PurchaseModal";
 
-type BookRow = { id: string; title: string; isbn: string | null; coverPhotoUrl: string | null; status: string };
+type BookRow = { id: string; title: string; author: string | null; isbn: string | null; coverPhotoUrl: string | null; condition: string | null; status: string };
 type PurchaseRow = {
   id: string;
   date: Date | string;
@@ -19,8 +18,7 @@ type PurchaseRow = {
 export default function PurchaseListClient({ initialPurchases }: { initialPurchases: PurchaseRow[] }) {
   const [purchases, setPurchases] = useState(initialPurchases);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [editing, setEditing] = useState<PurchaseRow | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [modalState, setModalState] = useState<{ mode: "create" } | { mode: "edit"; purchase: PurchaseRow } | null>(null);
   const [error, setError] = useState("");
 
   async function remove(p: PurchaseRow) {
@@ -35,13 +33,40 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
     }
   }
 
-  function handleCreated(created: { id: string; supplier: string; date: Date | string; totalCost: number; weightGrams: number | null; note: string | null; _count: { books: number } }) {
-    setPurchases((list) => [
-      { ...created, books: [] },
-      ...list,
-    ]);
-    setExpandedId(created.id);
+  async function handleSaved(saved: { id: string; supplier: string; date: Date | string; totalCost: number; weightGrams: number | null; note: string | null; _count: { books: number }; books?: BookRow[] }) {
+    const withBooks: PurchaseRow = {
+      id: saved.id,
+      date: saved.date,
+      supplier: saved.supplier,
+      totalCost: saved.totalCost,
+      weightGrams: saved.weightGrams,
+      note: saved.note,
+      _count: saved._count,
+      books: saved.books ?? [],
+    };
+    setPurchases((list) => {
+      const idx = list.findIndex((x) => x.id === saved.id);
+      if (idx >= 0) {
+        const updated = [...list];
+        updated[idx] = { ...updated[idx], ...withBooks };
+        return updated;
+      }
+      return [withBooks, ...list];
+    });
+    setExpandedId(saved.id);
   }
+
+  const editingPurchase: InitialPurchase | undefined = modalState?.mode === "edit"
+    ? {
+        id: modalState.purchase.id,
+        date: modalState.purchase.date,
+        supplier: modalState.purchase.supplier,
+        totalCost: modalState.purchase.totalCost,
+        weightGrams: modalState.purchase.weightGrams,
+        note: modalState.purchase.note,
+        books: modalState.purchase.books,
+      }
+    : undefined;
 
   return (
     <div className="space-y-4">
@@ -49,7 +74,7 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
 
       <div className="flex justify-end">
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => setModalState({ mode: "create" })}
           className="rounded bg-blue-600 px-4 py-2 text-white"
         >
           + Thêm lô nhập
@@ -81,7 +106,7 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
                     </div>
                   </div>
                   <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => setEditing(p)} className="rounded bg-slate-100 px-3 py-1 text-sm">Sửa</button>
+                    <button onClick={() => setModalState({ mode: "edit", purchase: p })} className="rounded bg-slate-100 px-3 py-1 text-sm">Sửa</button>
                     <button onClick={() => remove(p)} className="rounded bg-red-100 px-3 py-1 text-sm text-red-700">Xóa</button>
                   </div>
                 </div>
@@ -113,7 +138,7 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
                         </div>
                       </div>
                     ) : (
-                      <p className="mb-3 text-sm text-slate-400">Chưa có sách</p>
+                      <p className="mb-3 text-sm text-slate-400">Chưa có sách — bấm &quot;Sửa&quot; để thêm</p>
                     )}
                   </div>
                 )}
@@ -124,21 +149,11 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
       )}
 
       <PurchaseModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onCreated={handleCreated}
+        isOpen={modalState !== null}
+        onClose={() => setModalState(null)}
+        onSaved={handleSaved}
+        initialPurchase={editingPurchase}
       />
-
-      {editing && (
-        <PurchaseEditForm
-          purchase={editing}
-          onClose={() => setEditing(null)}
-          onSaved={(updated) => {
-            setPurchases((list) => list.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)));
-            setEditing(null);
-          }}
-        />
-      )}
     </div>
   );
 }

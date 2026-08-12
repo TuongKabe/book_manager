@@ -6,7 +6,10 @@ export const dynamic = "force-dynamic";
 export default async function PurchasesPage() {
   const purchases = await prisma.purchase.findMany({
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { books: true } }, books: { select: { id: true, title: true, isbn: true, coverPhotoUrl: true, status: true } } },
+    include: {
+      _count: { select: { books: true } },
+      books: { select: { id: true, title: true, author: true, isbn: true, coverPhotoUrl: true, condition: true, status: true } },
+    },
   });
   const serialized = purchases.map((p) => ({ ...p, weightGrams: p.weightGrams }));
   return (

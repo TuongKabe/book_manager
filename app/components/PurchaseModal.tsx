@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import ISBNScanner from "./ISBNScanner";
+import { toDateInputValue } from "@/lib/date";
 
 type BookInfo = {
   title: string;
@@ -9,6 +10,16 @@ type BookInfo = {
   category: string;
   thumbnail: string;
   description: string;
+};
+
+type ExistingBook = {
+  id: string;
+  isbn: string | null;
+  title: string;
+  author: string | null;
+  coverPhotoUrl: string | null;
+  condition: string | null;
+  status: string;
 };
 
 type PendingBook = {
@@ -20,40 +31,58 @@ type PendingBook = {
   condition: string;
 };
 
+export type InitialPurchase = {
+  id: string;
+  date: Date | string;
+  supplier: string;
+  totalCost: number;
+  weightGrams: number | null;
+  note: string | null;
+  books: ExistingBook[];
+};
+
 const CONDITIONS = ["NEW", "LIKE_NEW", "VG", "GOOD", "FAIR", "POOR"];
 
 export default function PurchaseModal({
   isOpen,
   onClose,
-  onCreated,
+  onSaved,
+  initialPurchase,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (purchase: { id: string; supplier: string; date: Date | string; totalCost: number; weightGrams: number | null; note: string | null; _count: { books: number } }) => void;
+  onSaved: (purchase: { id: string; supplier: string; date: Date | string; totalCost: number; weightGrams: number | null; note: string | null; _count: { books: number }; books?: ExistingBook[] }) => void;
+  initialPurchase?: InitialPurchase;
 }) {
-  const [batch, setBatch] = useState({
-    date: new Date().toISOString().slice(0, 10),
-    supplier: "",
-    totalCost: "",
-    weightGrams: "",
-    note: "",
-  });
-  const [books, setBooks] = useState<PendingBook[]>([]);
+  const isEdit = !!initialPurchase;
+
+  const [batch, setBatch] = useState(() => ({
+    date: initialPurchase ? toDateInputValue(initialPurchase.date) : new Date().toISOString().slice(0, 10),
+    supplier: initialPurchase?.supplier ?? "",
+    totalCost: initialPurchase ? String(initialPurchase.totalCost ?? "") : "",
+    weightGrams: initialPurchase ? String(initialPurchase.weightGrams ?? "") : "",
+    note: initialPurchase?.note ?? "",
+  }));
+  const [existingBooks, setExistingBooks] = useState<ExistingBook[]>(initialPurchase?.books ?? []);
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [newBooks, setNewBooks] = useState<PendingBook[]>([]);
   const [currentBook, setCurrentBook] = useState<PendingBook | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [scanKey, setScanKey] = useState(0);
 
+  const remainingExisting = existingBooks.filter((b) => !removedIds.includes(b.id));
+  const totalBookCount = remainingExisting.length + newBooks.length;
+
   const stats = useMemo(() => {
-    const count = books.length;
     const totalCostNum = Number(batch.totalCost) || 0;
     const weightGramsNum = Number(batch.weightGrams) || 0;
     return {
-      count,
-      avgCost: count > 0 ? Math.floor(totalCostNum / count) : 0,
-      avgWeight: count > 0 && weightGramsNum > 0 ? Math.floor(weightGramsNum / count) : 0,
+      count: totalBookCount,
+      avgCost: totalBookCount > 0 ? Math.floor(totalCostNum / totalBookCount) : 0,
+      avgWeight: totalBookCount > 0 && weightGramsNum > 0 ? Math.floor(weightGramsNum / totalBookCount) : 0,
     };
-  }, [books.length, batch.totalCost, batch.weightGrams]);
+  }, [totalBookCount, batch.totalCost, batch.weightGrams]);
 
   function handleScan(isbn: string, info: BookInfo) {
     setCurrentBook({
@@ -68,7 +97,7 @@ export default function PurchaseModal({
 
   function addCurrentBook() {
     if (!currentBook || !currentBook.title.trim()) return;
-    setBooks((prev) => [...prev, currentBook]);
+    setNewBooks((prev) => [...prev, currentBook]);
     setCurrentBook(null);
     setScanKey((k) => k + 1);
   }
@@ -78,8 +107,13 @@ export default function PurchaseModal({
     setScanKey((k) => k + 1);
   }
 
-  function removeBook(isbn: string) {
-    setBooks((prev) => prev.filter((b) => b.isbn !== isbn));
+  function removeExistingBook(id: string) {
+    if (!confirm("Bỏ sách này khỏi lô? Sách vẫn còn trong kho.")) return;
+    setRemovedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }
+
+  function removeNewBook(isbn: string) {
+    setNewBooks((prev) => prev.filter((b) => b.isbn !== isbn));
   }
 
   async function handleSave() {
@@ -87,31 +121,90 @@ export default function PurchaseModal({
       setError("Nhập nhà cung cấp");
       return;
     }
+    if (totalBookCount === 0) {
+      setError("Lô phải có ít nhất 1 sách");
+      return;
+    }
     setError("");
     setSaving(true);
+
     try {
-      const res = await fetch("/api/purchases", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: batch.date,
-          supplier: batch.supplier,
-          totalCost: batch.totalCost ? Number(batch.totalCost) : 0,
-          weightGrams: batch.weightGrams ? Number(batch.weightGrams) : null,
-          note: batch.note || null,
-          books,
-        }),
-      });
-      if (res.ok) {
-        const created = await res.json();
-        onCreated({
-          ...created,
-          books: [],
+      if (isEdit && initialPurchase) {
+        const patchRes = await fetch(`/api/purchases/${initialPurchase.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: batch.date,
+            supplier: batch.supplier,
+            totalCost: batch.totalCost ? Number(batch.totalCost) : 0,
+            weightGrams: batch.weightGrams ? Number(batch.weightGrams) : null,
+            note: batch.note || null,
+          }),
         });
+        if (!patchRes.ok) {
+          const data = await patchRes.json().catch(() => ({}));
+          setError(data.error ?? "Lỗi cập nhật lô");
+          setSaving(false);
+          return;
+        }
+
+        for (const id of removedIds) {
+          await fetch(`/api/books/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ purchaseId: null }),
+          });
+        }
+
+        const totalCostNum = Number(batch.totalCost) || 0;
+        const weightGramsNum = Number(batch.weightGrams) || 0;
+        const numNew = newBooks.length;
+        const perBookCost = numNew > 0 ? Math.floor(totalCostNum / totalBookCount) : 0;
+        const perBookWeight = numNew > 0 && weightGramsNum > 0 ? Math.floor(weightGramsNum / totalBookCount) : null;
+
+        for (const book of newBooks) {
+          await fetch(`/api/books`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              isbn: book.isbn,
+              title: book.title,
+              author: book.author || null,
+              category: book.category || null,
+              condition: book.condition,
+              coverPhotoUrl: book.coverPhotoUrl || null,
+              purchaseId: initialPurchase.id,
+              purchaseCostVnd: perBookCost,
+              weightGrams: perBookWeight,
+              status: "LISTED",
+            }),
+          });
+        }
+
+        const updated = await fetch(`/api/purchases/${initialPurchase.id}`).then((r) => r.json());
+        onSaved({ ...updated, books: updated.books ?? [] });
         resetAndClose();
       } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Có lỗi xảy ra");
+        const res = await fetch("/api/purchases", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: batch.date,
+            supplier: batch.supplier,
+            totalCost: batch.totalCost ? Number(batch.totalCost) : 0,
+            weightGrams: batch.weightGrams ? Number(batch.weightGrams) : null,
+            note: batch.note || null,
+            books: newBooks,
+          }),
+        });
+        if (res.ok) {
+          const created = await res.json();
+          onSaved({ ...created, books: [] });
+          resetAndClose();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setError(data.error ?? "Có lỗi xảy ra");
+        }
       }
     } catch {
       setError("Lỗi kết nối — thử lại");
@@ -121,7 +214,9 @@ export default function PurchaseModal({
 
   function resetAndClose() {
     setBatch({ date: new Date().toISOString().slice(0, 10), supplier: "", totalCost: "", weightGrams: "", note: "" });
-    setBooks([]);
+    setExistingBooks([]);
+    setRemovedIds([]);
+    setNewBooks([]);
     setCurrentBook(null);
     setError("");
     onClose();
@@ -133,7 +228,7 @@ export default function PurchaseModal({
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[95vh] w-full max-w-2xl space-y-3 overflow-auto rounded-xl bg-white p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">Thêm lô nhập mới</h2>
+          <h2 className="text-lg font-bold">{isEdit ? "Sửa lô nhập" : "Thêm lô nhập mới"}</h2>
           <button onClick={resetAndClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">✕</button>
         </div>
 
@@ -165,8 +260,8 @@ export default function PurchaseModal({
         <div>
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-medium">Sách trong lô ({stats.count})</h3>
-            {stats.count > 0 && (
-              <button onClick={() => setBooks([])} className="text-xs text-red-600 hover:underline">Xóa hết</button>
+            {(existingBooks.length > 0 || newBooks.length > 0) && (
+              <button onClick={() => { setRemovedIds(existingBooks.map((b) => b.id)); setNewBooks([]); }} className="text-xs text-red-600 hover:underline">Xóa hết</button>
             )}
           </div>
           {stats.count === 0 ? (
@@ -175,8 +270,8 @@ export default function PurchaseModal({
             </div>
           ) : (
             <div className="max-h-40 space-y-1 overflow-auto rounded border bg-slate-50 p-2">
-              {books.map((b, i) => (
-                <div key={`${b.isbn}-${i}`} className="flex items-center gap-2 rounded bg-white p-2">
+              {remainingExisting.map((b) => (
+                <div key={b.id} className="flex items-center gap-2 rounded bg-white p-2">
                   {b.coverPhotoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={b.coverPhotoUrl} alt={b.title} className="h-10 w-7 rounded object-cover" />
@@ -184,10 +279,29 @@ export default function PurchaseModal({
                     <div className="flex h-10 w-7 items-center justify-center rounded bg-slate-200 text-[8px] text-slate-400">No</div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{b.title}</p>
+                    <p className="truncate text-sm font-medium">
+                      {b.title} <span className="text-xs text-slate-400">(đã có)</span>
+                    </p>
+                    <p className="text-xs text-slate-400">{b.isbn || "—"} · {b.condition ?? "—"}</p>
+                  </div>
+                  <button onClick={() => removeExistingBook(b.id)} className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">Bỏ</button>
+                </div>
+              ))}
+              {newBooks.map((b, i) => (
+                <div key={`${b.isbn}-${i}`} className="flex items-center gap-2 rounded bg-blue-50 p-2">
+                  {b.coverPhotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={b.coverPhotoUrl} alt={b.title} className="h-10 w-7 rounded object-cover" />
+                  ) : (
+                    <div className="flex h-10 w-7 items-center justify-center rounded bg-slate-200 text-[8px] text-slate-400">No</div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {b.title} <span className="text-xs text-blue-600">(mới)</span>
+                    </p>
                     <p className="text-xs text-slate-400">{b.isbn || "—"} · {b.condition}</p>
                   </div>
-                  <button onClick={() => removeBook(b.isbn)} className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">Xóa</button>
+                  <button onClick={() => removeNewBook(b.isbn)} className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">Xóa</button>
                 </div>
               ))}
             </div>
@@ -195,7 +309,7 @@ export default function PurchaseModal({
         </div>
 
         <div className="rounded-lg border bg-slate-50 p-3">
-          <p className="mb-2 text-sm font-medium">Thêm sách vào lô:</p>
+          <p className="mb-2 text-sm font-medium">{isEdit ? "Thêm sách vào lô:" : "Thêm sách vào lô:"}</p>
           <ISBNScanner onFound={handleScan} autoStartKey={scanKey} />
         </div>
 
@@ -227,15 +341,15 @@ export default function PurchaseModal({
 
         <div className="grid grid-cols-3 gap-2 rounded-lg border-2 border-slate-200 bg-slate-50 p-3">
           <div className="text-center">
-            <p className="text-xs text-slate-500">Số sách</p>
+            <p className="text-xs text-slate-500">Tổng sách</p>
             <p className="text-xl font-bold">{stats.count}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-slate-500">Giá TB / sách</p>
+            <p className="text-xs text-slate-500">Giá TB / sách mới</p>
             <p className="text-xl font-bold text-blue-600">{stats.avgCost > 0 ? `${stats.avgCost.toLocaleString("vi-VN")}đ` : "—"}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-slate-500">Cân nặng TB / sách</p>
+            <p className="text-xs text-slate-500">Cân nặng TB / sách mới</p>
             <p className="text-xl font-bold text-blue-600">{stats.avgWeight > 0 ? `${stats.avgWeight}g` : "—"}</p>
           </div>
         </div>
@@ -243,7 +357,7 @@ export default function PurchaseModal({
         <div className="flex justify-end gap-2 border-t pt-3">
           <button onClick={resetAndClose} className="rounded bg-slate-200 px-4 py-2">Hủy</button>
           <button onClick={handleSave} disabled={saving || !batch.supplier.trim() || stats.count === 0} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">
-            {saving ? "Đang lưu..." : `Lưu lô (${stats.count} sách)`}
+            {saving ? "Đang lưu..." : isEdit ? `Cập nhật lô (${stats.count} sách)` : `Lưu lô (${stats.count} sách)`}
           </button>
         </div>
       </div>
