@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import BookEditForm from "./BookEditForm";
 
@@ -26,14 +26,22 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
   const [status, setStatus] = useState("");
   const [editing, setEditing] = useState<BookRow | null>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  async function search() {
+  async function fetchBooks(searchQ: string, searchStatus: string) {
+    setLoading(true);
     const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    if (status) params.set("status", status);
+    if (searchQ) params.set("q", searchQ);
+    if (searchStatus) params.set("status", searchStatus);
     const res = await fetch(`/api/books?${params}`);
     setBooks(await res.json());
+    setLoading(false);
   }
+
+  useEffect(() => {
+    fetchBooks(q, status);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   async function markSold(book: BookRow) {
     const res = await fetch(`/api/books/${book.id}`, {
@@ -47,8 +55,7 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
       return;
     }
     setError("");
-    router.refresh();
-    search();
+    fetchBooks(q, status);
   }
 
   async function remove(book: BookRow) {
@@ -60,8 +67,7 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
       return;
     }
     setError("");
-    router.refresh();
-    search();
+    fetchBooks(q, status);
   }
 
   return (
@@ -71,17 +77,19 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && search()}
+          onKeyDown={(e) => e.key === "Enter" && fetchBooks(q, status)}
           placeholder="Tìm tên / tác giả / ISBN"
           className="rounded border border-slate-300 px-3 py-2"
         />
-        <select value={status} onChange={(e) => { setStatus(e.target.value); }} className="rounded border border-slate-300 px-3 py-2">
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded border border-slate-300 px-3 py-2">
           <option value="">Tất cả</option>
           <option value="INTAKE">Nhập kho</option>
           <option value="LISTED">Đang bán</option>
           <option value="SOLD">Đã bán</option>
         </select>
-        <button onClick={search} className="rounded bg-blue-600 px-4 py-2 text-white">Tìm</button>
+        <button onClick={() => fetchBooks(q, status)} disabled={loading} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">
+          {loading ? "Đang tìm..." : "Tìm"}
+        </button>
       </div>
 
       {books.length === 0 ? (
@@ -133,7 +141,7 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
         <BookEditForm
           book={editing}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); router.refresh(); search(); }}
+          onSaved={() => { setEditing(null); fetchBooks(q, status); }}
         />
       )}
     </div>

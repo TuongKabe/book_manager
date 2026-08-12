@@ -3,10 +3,9 @@
 import { useState } from "react";
 import EditModal from "@/app/components/EditModal";
 import { toDateInputValue } from "@/lib/date";
+import { EXPENSE_CATEGORIES } from "@/lib/constants";
 
 type ExpenseRow = { id: string; date: Date | string; category: string; amountVnd: number; note: string | null };
-
-const CATEGORIES = ["Vận chuyển", "Đóng gói", "Phí nền tảng", "Khác"];
 
 export default function ExpenseEditForm({
   expense,
@@ -58,7 +57,7 @@ export default function ExpenseEditForm({
       <label className="flex flex-col text-sm">
         Loại
         <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="rounded border border-slate-300 px-3 py-2">
-          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+          {EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
         </select>
       </label>
       <label className="flex flex-col text-sm">

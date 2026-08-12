@@ -18,10 +18,12 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), supplier: "", totalCost: "" });
   const [editing, setEditing] = useState<PurchaseRow | null>(null);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSubmitting(true);
     const res = await fetch("/api/purchases", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -35,6 +37,7 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Có lỗi xảy ra");
     }
+    setSubmitting(false);
   }
 
   async function remove(p: PurchaseRow) {
@@ -64,7 +67,7 @@ export default function PurchaseListClient({ initialPurchases }: { initialPurcha
           Tổng chi (đ)
           <input type="number" value={form.totalCost} onChange={(e) => setForm({ ...form, totalCost: e.target.value })} className="rounded border border-slate-300 px-3 py-2" />
         </label>
-        <button className="rounded bg-blue-600 px-4 py-2 text-white">Thêm lô</button>
+        <button disabled={submitting} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">{submitting ? "Đang thêm..." : "Thêm lô"}</button>
       </form>
 
       {purchases.length === 0 ? (

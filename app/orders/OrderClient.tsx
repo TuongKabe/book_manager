@@ -10,10 +10,12 @@ export default function OrderClient({ initialOrders }: { initialOrders: OrderRow
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), channel: "", totalVnd: "" });
   const [editing, setEditing] = useState<OrderRow | null>(null);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSubmitting(true);
     const res = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -27,6 +29,7 @@ export default function OrderClient({ initialOrders }: { initialOrders: OrderRow
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Có lỗi xảy ra");
     }
+    setSubmitting(false);
   }
 
   async function remove(o: OrderRow) {
@@ -56,7 +59,7 @@ export default function OrderClient({ initialOrders }: { initialOrders: OrderRow
           Tổng thu (đ)
           <input type="number" value={form.totalVnd} onChange={(e) => setForm({ ...form, totalVnd: e.target.value })} className="rounded border border-slate-300 px-3 py-2" />
         </label>
-        <button className="rounded bg-blue-600 px-4 py-2 text-white">Ghi đơn</button>
+        <button disabled={submitting} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">{submitting ? "Đang ghi..." : "Ghi đơn"}</button>
       </form>
 
       {orders.length === 0 ? (

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import type { BookRow } from "./BookListClient";
+import EditModal from "@/app/components/EditModal";
 
 const CONDITIONS = ["NEW", "LIKE_NEW", "VG", "GOOD", "FAIR", "POOR"];
 
@@ -24,12 +25,14 @@ export default function BookEditForm({
     purchaseCostVnd: book.purchaseCostVnd ?? "",
     notes: "",
   });
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function submit() {
+    setSaving(true);
     setError("");
     const res = await fetch(`/api/books/${book.id}`, {
       method: "PATCH",
@@ -44,6 +47,7 @@ export default function BookEditForm({
         notes: form.notes || null,
       }),
     });
+    setSaving(false);
     if (res.ok) {
       onSaved();
     } else {
@@ -53,27 +57,20 @@ export default function BookEditForm({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-md space-y-3 overflow-auto rounded-xl bg-white p-5">
-        <h2 className="text-lg font-bold">Sửa sách</h2>
-        {error && <div className="rounded bg-red-100 px-3 py-2 text-sm text-red-700">{error}</div>}
-        <input value={form.title} onChange={set("title")} placeholder="Tiêu đề" className="w-full rounded border border-slate-300 px-3 py-2" />
-        <input value={form.author} onChange={set("author")} placeholder="Tác giả" className="w-full rounded border border-slate-300 px-3 py-2" />
-        <input value={form.category} onChange={set("category")} placeholder="Phân loại" className="w-full rounded border border-slate-300 px-3 py-2" />
-        <select value={form.condition} onChange={set("condition")} className="w-full rounded border border-slate-300 px-3 py-2">
-          {book.condition && !CONDITIONS.includes(book.condition) && (
-            <option value={book.condition}>{book.condition}</option>
-          )}
-          {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <input value={form.listPriceVnd} onChange={set("listPriceVnd")} type="number" placeholder="Giá bán (đ)" className="w-full rounded border border-slate-300 px-3 py-2" />
-        <input value={form.purchaseCostVnd} onChange={set("purchaseCostVnd")} type="number" placeholder="Giá nhập (đ)" className="w-full rounded border border-slate-300 px-3 py-2" />
-        <input value={form.notes} onChange={set("notes")} placeholder="Ghi chú" className="w-full rounded border border-slate-300 px-3 py-2" />
-        <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="rounded bg-slate-200 px-4 py-2">Hủy</button>
-          <button onClick={submit} className="rounded bg-blue-600 px-4 py-2 text-white">Lưu</button>
-        </div>
-      </div>
-    </div>
+    <EditModal title="Sửa sách" onClose={onClose} onSave={submit} saving={saving}>
+      {error && <div className="rounded bg-red-100 px-3 py-2 text-sm text-red-700">{error}</div>}
+      <input value={form.title} onChange={set("title")} placeholder="Tiêu đề" className="w-full rounded border border-slate-300 px-3 py-2" />
+      <input value={form.author} onChange={set("author")} placeholder="Tác giả" className="w-full rounded border border-slate-300 px-3 py-2" />
+      <input value={form.category} onChange={set("category")} placeholder="Phân loại" className="w-full rounded border border-slate-300 px-3 py-2" />
+      <select value={form.condition} onChange={set("condition")} className="w-full rounded border border-slate-300 px-3 py-2">
+        {book.condition && !CONDITIONS.includes(book.condition) && (
+          <option value={book.condition}>{book.condition}</option>
+        )}
+        {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+      </select>
+      <input value={form.listPriceVnd} onChange={set("listPriceVnd")} type="number" placeholder="Giá bán (đ)" className="w-full rounded border border-slate-300 px-3 py-2" />
+      <input value={form.purchaseCostVnd} onChange={set("purchaseCostVnd")} type="number" placeholder="Giá nhập (đ)" className="w-full rounded border border-slate-300 px-3 py-2" />
+      <input value={form.notes} onChange={set("notes")} placeholder="Ghi chú" className="w-full rounded border border-slate-300 px-3 py-2" />
+    </EditModal>
   );
 }

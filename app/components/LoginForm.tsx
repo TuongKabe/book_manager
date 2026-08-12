@@ -7,9 +7,11 @@ export default function LoginForm() {
   const router = useRouter();
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitting(true);
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -21,6 +23,7 @@ export default function LoginForm() {
     } else {
       setError("Sai mã truy cập");
     }
+    setSubmitting(false);
   }
 
   return (
@@ -34,8 +37,8 @@ export default function LoginForm() {
         className="w-full rounded border border-slate-300 px-3 py-2"
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <button className="w-full rounded bg-blue-600 py-2 text-white hover:bg-blue-700">
-        Đăng nhập
+      <button disabled={submitting} className="w-full rounded bg-blue-600 py-2 text-white hover:bg-blue-700 disabled:opacity-50">
+        {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
     </form>
   );

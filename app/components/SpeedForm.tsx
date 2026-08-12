@@ -31,6 +31,7 @@ export default function SpeedForm({
   const [purchases, setPurchases] = useState<PurchaseOption[]>([]);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetch("/api/purchases")
@@ -46,6 +47,7 @@ export default function SpeedForm({
 
   async function submit() {
     setError("");
+    setSubmitting(true);
     const res = await fetch("/api/books", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -70,6 +72,7 @@ export default function SpeedForm({
       const data = await res.json();
       setError(data.error ?? "Lưu thất bại");
     }
+    setSubmitting(false);
   }
 
   if (saved) {
@@ -115,7 +118,7 @@ export default function SpeedForm({
       {error && <p className="sm:col-span-2 text-sm text-red-600">{error}</p>}
       <div className="sm:col-span-2 flex justify-end gap-2">
         <button type="button" onClick={onReset} className="rounded bg-slate-200 px-4 py-2">Hủy</button>
-        <button type="submit" className="rounded bg-blue-600 px-6 py-2 text-white">Lưu vào kho</button>
+        <button type="submit" disabled={submitting} className="rounded bg-blue-600 px-6 py-2 text-white disabled:opacity-50">{submitting ? "Đang lưu..." : "Lưu vào kho"}</button>
       </div>
     </form>
   );

@@ -2,20 +2,21 @@
 
 import { useState } from "react";
 import ExpenseEditForm from "./ExpenseEditForm";
+import { EXPENSE_CATEGORIES } from "@/lib/constants";
 
 type ExpenseRow = { id: string; date: Date | string; category: string; amountVnd: number; note: string | null };
-
-const CATEGORIES = ["Vận chuyển", "Đóng gói", "Phí nền tảng", "Khác"];
 
 export default function ExpenseClient({ initialExpenses }: { initialExpenses: ExpenseRow[] }) {
   const [expenses, setExpenses] = useState(initialExpenses);
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), category: "Vận chuyển", amountVnd: "" });
   const [editing, setEditing] = useState<ExpenseRow | null>(null);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSubmitting(true);
     const res = await fetch("/api/expenses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -29,6 +30,7 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Có lỗi xảy ra");
     }
+    setSubmitting(false);
   }
 
   async function remove(x: ExpenseRow) {
@@ -53,14 +55,14 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
         <label className="flex flex-col text-sm">
           Loại
           <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="rounded border border-slate-300 px-3 py-2">
-            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            {EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
           </select>
         </label>
         <label className="flex flex-col text-sm">
           Số tiền (đ)
           <input type="number" value={form.amountVnd} onChange={(e) => setForm({ ...form, amountVnd: e.target.value })} required className="rounded border border-slate-300 px-3 py-2" />
         </label>
-        <button className="rounded bg-blue-600 px-4 py-2 text-white">Thêm</button>
+        <button disabled={submitting} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">{submitting ? "Đang thêm..." : "Thêm"}</button>
       </form>
 
       {expenses.length === 0 ? (
@@ -81,7 +83,7 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
                   <td className="px-3 py-2">{x.amountVnd.toLocaleString("vi-VN")}đ</td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => setEditing(x)} className="rounded bg-slate-100 px-2 py-1 text-red-700">Sửa</button>
+                      <button onClick={() => setEditing(x)} className="rounded bg-slate-100 px-2 py-1 text-slate-700">Sửa</button>
                       <button onClick={() => remove(x)} className="rounded bg-red-100 px-2 py-1 text-red-700">Xóa</button>
                     </div>
                   </td>

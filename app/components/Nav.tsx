@@ -31,7 +31,8 @@ export default function Nav() {
               key={item.href}
               href={item.href}
               className={`rounded px-3 py-2 hover:bg-slate-100 ${
-                pathname === item.href ? "bg-blue-50 font-semibold" : ""
+                pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
+                  ? "bg-blue-50 font-semibold" : ""
               }`}
             >
               <span className="mr-2">{item.icon}</span>{item.label}
@@ -49,7 +50,8 @@ export default function Nav() {
             key={item.href}
             href={item.href}
             className={`flex flex-col items-center text-xs ${
-              pathname === item.href ? "font-bold text-blue-600" : "text-slate-500"
+              pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
+                ? "font-bold text-blue-600" : "text-slate-500"
             }`}
           >
             <span className="text-lg">{item.icon}</span>{item.label}

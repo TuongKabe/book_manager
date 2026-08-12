@@ -40,7 +40,7 @@ export default function SpeedScanner() {
     (async () => {
       const { Html5Qrcode } = await import("html5-qrcode");
       if (cancelled) return;
-      const scanner = new Html5Qrcode("qr-reader");
+      const scanner = new Html5Qrcode(el.id);
       scannerRef.current = scanner;
       scanner
         .start(
@@ -63,6 +63,7 @@ export default function SpeedScanner() {
       cancelled = true;
       if (scannerRef.current) {
         scannerRef.current.stop().catch(() => {});
+        scannerRef.current = null;
       }
     };
   }, [scanning]);
