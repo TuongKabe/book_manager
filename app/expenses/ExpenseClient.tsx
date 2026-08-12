@@ -60,6 +60,34 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
     return { total, count, byCategory };
   }, [filtered]);
 
+  const hiddenItems = useMemo(() => {
+    const idSet = new Set(filtered.map((x) => x.id));
+    return expenses.filter((x) => !idSet.has(x.id));
+  }, [expenses, filtered]);
+
+  const filterBreakdown = useMemo(() => {
+    if (!expenses.length) return [];
+    const items: { label: string; count: number }[] = [];
+    if (selectedCats.size !== EXPENSE_CATEGORIES.length) {
+      const count = expenses.filter((x) => !selectedCats.has(x.category)).length;
+      if (count > 0) items.push({ label: `Loại (${selectedCats.size}/${EXPENSE_CATEGORIES.length})`, count });
+    }
+    if (minNum != null) {
+      const count = expenses.filter((x) => x.amountVnd < minNum).length;
+      if (count > 0) items.push({ label: `Dưới ${minNum.toLocaleString("vi-VN")}đ`, count });
+    }
+    if (maxNum != null) {
+      const count = expenses.filter((x) => x.amountVnd > maxNum).length;
+      if (count > 0) items.push({ label: `Trên ${maxNum.toLocaleString("vi-VN")}đ`, count });
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const count = expenses.filter((x) => !(x.note ?? "").toLowerCase().includes(q)).length;
+      if (count > 0) items.push({ label: `Không khớp "${search}"`, count });
+    }
+    return items;
+  }, [expenses, selectedCats, minNum, maxNum, search]);
+
   function toggleCat(c: string) {
     setSelectedCats((prev) => {
       const next = new Set(prev);
@@ -106,6 +134,7 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
   const hasActiveFilter = selectedCats.size !== EXPENSE_CATEGORIES.length || minAmount || maxAmount || search;
   const totalCount = expenses.length;
   const activeFilterCount = (selectedCats.size !== EXPENSE_CATEGORIES.length ? 1 : 0) + (minAmount ? 1 : 0) + (maxAmount ? 1 : 0) + (search ? 1 : 0);
+  const [showHidden, setShowHidden] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -172,11 +201,25 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <p className="text-slate-500">
-          Hiển thị <span className="font-bold text-slate-900">{stats.count}</span> / {totalCount} mục
-          {hasActiveFilter && stats.count < totalCount && <span className="ml-2 text-xs text-amber-600">(đang ẩn {totalCount - stats.count} mục)</span>}
-        </p>
+      <div className="rounded-xl border bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <p className="text-slate-600">
+            Hiển thị <span className="font-bold text-slate-900">{stats.count}</span> / {totalCount} mục
+            {hasActiveFilter && stats.count < totalCount && (
+              <span className="ml-2 text-xs text-amber-600">(đang ẩn {hiddenItems.length} mục)</span>
+            )}
+          </p>
+        </div>
+        {filterBreakdown.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {filterBreakdown.map((b, i) => (
+              <span key={i} className="rounded bg-amber-50 px-2 py-0.5 text-amber-700">
+                <strong>{b.count}</strong> bị ẩn do <em>{b.label}</em>
+              </span>
+            ))}
+            <span className="text-[10px] text-slate-400 italic">* có thể trùng giữa các bộ lọc</span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -216,6 +259,15 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
             <>
               <p className="text-slate-500">Không có chi phí nào khớp bộ lọc hiện tại</p>
               <p className="mt-1 text-xs text-slate-400">Có {totalCount} mục trong DB nhưng bị ẩn bởi {activeFilterCount} bộ lọc</p>
+              {filterBreakdown.length > 0 && (
+                <div className="mx-auto mt-3 inline-flex flex-wrap justify-center gap-1.5 text-xs">
+                  {filterBreakdown.map((b, i) => (
+                    <span key={i} className="rounded bg-amber-100 px-2 py-0.5 text-amber-700">
+                      {b.label}: ẩn <strong>{b.count}</strong>
+                    </span>
+                  ))}
+                </div>
+              )}
               <button onClick={resetFilters} className="mt-3 rounded bg-blue-600 px-4 py-2 text-sm text-white">↺ Xóa tất cả bộ lọc</button>
             </>
           )}
@@ -251,6 +303,55 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {hasActiveFilter && hiddenItems.length > 0 && (
+        <div className="rounded-xl border bg-amber-50/50 p-3">
+          <button onClick={() => setShowHidden((s) => !s)} className="flex w-full items-center justify-between text-left text-sm">
+            <span className="font-medium text-amber-800">
+              {showHidden ? "▾" : "▸"} Xem {hiddenItems.length} mục đang bị ẩn
+            </span>
+            <span className="text-xs text-amber-600">bấm để mở rộng</span>
+          </button>
+          {showHidden && (
+            <div className="mt-2 max-h-60 overflow-auto rounded border bg-white">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Ngày</th>
+                    <th className="px-3 py-2">Loại</th>
+                    <th className="px-3 py-2">Số tiền</th>
+                    <th className="px-3 py-2">Lý do bị ẩn</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {hiddenItems.map((x) => {
+                    const reasons: string[] = [];
+                    if (!selectedCats.has(x.category)) reasons.push("Loại");
+                    if (minNum != null && x.amountVnd < minNum) reasons.push(`Dưới ${minNum.toLocaleString("vi-VN")}đ`);
+                    if (maxNum != null && x.amountVnd > maxNum) reasons.push(`Trên ${maxNum.toLocaleString("vi-VN")}đ`);
+                    if (search.trim() && !(x.note ?? "").toLowerCase().includes(search.trim().toLowerCase())) reasons.push(`Không khớp "${search}"`);
+                    return (
+                      <tr key={x.id} className="border-b hover:bg-slate-50">
+                        <td className="px-3 py-2">{new Date(x.date).toLocaleDateString("vi-VN")}</td>
+                        <td className="px-3 py-2"><span className="rounded bg-slate-100 px-2 py-0.5 text-xs">{x.category}</span></td>
+                        <td className="px-3 py-2 text-right">{x.amountVnd.toLocaleString("vi-VN")}đ</td>
+                        <td className="px-3 py-2 text-xs text-amber-700">{reasons.join(", ") || "—"}</td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => setModalState({ mode: "edit", expense: x })} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">Sửa</button>
+                            <button onClick={() => remove(x)} className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">Xóa</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
