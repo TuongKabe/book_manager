@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { parseDateOnly } from "@/lib/date";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params;
   const body = await req.json();
+  if (body.status === "SOLD" && !body.soldOrderId) {
+    return NextResponse.json(
+      { error: "Sách đã bán phải gắn với đơn hàng (soldOrderId)" },
+      { status: 400 },
+    );
+  }
   const data: Record<string, unknown> = {};
   for (const key of [
     "title", "isbn", "barcode", "author", "category", "condition",
@@ -18,9 +23,6 @@ export async function PATCH(req: Request, { params }: Params) {
     if (key in body) data[key] = body[key] ? Number(body[key]) : null;
   }
   if ("status" in body) data.status = body.status;
-  if (body.status === "SOLD") {
-    data.soldDate = body.soldDate ? parseDateOnly(body.soldDate) : new Date();
-  }
   if (body.status && body.status !== "SOLD") data.soldDate = null;
   const book = await prisma.book.update({ where: { id }, data });
   return NextResponse.json(book);
