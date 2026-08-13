@@ -5,12 +5,13 @@ import {
   MagnifyingGlass,
   CurrencyDollar,
   Tag,
-  CheckCircle,
   Book,
   PencilSimple,
   TrashSimple,
   Package,
   Coins,
+  Receipt,
+  Broom,
 } from "@phosphor-icons/react";
 import BookEditForm from "./BookEditForm";
 import PageHeader from "@/app/components/ui/PageHeader";
@@ -22,6 +23,7 @@ import Button from "@/app/components/ui/Button";
 import Card, { CardHeader, CardBody } from "@/app/components/ui/Card";
 import { Select, Input } from "@/app/components/ui/Field";
 import { StatSkeletonGrid } from "@/app/components/ui/Skeleton";
+import OrderModal from "@/app/components/OrderModal";
 
 type Purchase = { id: string; supplier: string; date: Date | string } | null;
 export type BookRow = {
@@ -35,7 +37,30 @@ export type BookRow = {
   listPriceVnd: number | null;
   purchaseCostVnd: number | null;
   status: string;
+  soldOrderId: string | null;
   purchase: Purchase;
+};
+
+export type OrderRow = {
+  id: string;
+  date: Date | string;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerAddress: string | null;
+  channel: string | null;
+  totalVnd: number | null;
+  shippingFee: number | null;
+  shippingUnit: string | null;
+  weightGrams: number | null;
+  note: string | null;
+  books: {
+    id: string;
+    title: string;
+    isbn: string | null;
+    coverPhotoUrl: string | null;
+    listPriceVnd: number | null;
+    weightGrams: number | null;
+  }[];
 };
 
 const fmt = (n: number) => n.toLocaleString("vi-VN");
@@ -53,6 +78,9 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
   const [editing, setEditing] = useState<BookRow | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [viewingOrder, setViewingOrder] = useState<OrderRow | null>(null);
+  const [notice, setNotice] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   async function fetchBooks(searchQ: string, searchStatus: string) {
     setLoading(true);
@@ -129,22 +157,6 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
       .slice(0, 5);
   }, [books]);
 
-  async function markSold(book: BookRow) {
-    if (!confirm(`Đánh dấu "${book.title}" là đã bán?`)) return;
-    const res = await fetch(`/api/books/${book.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "SOLD" }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Có lỗi xảy ra");
-      return;
-    }
-    setError("");
-    fetchBooks(q, status);
-  }
-
   async function remove(book: BookRow) {
     if (!confirm(`Xóa "${book.title}"?`)) return;
     const res = await fetch(`/api/books/${book.id}`, { method: "DELETE" });
@@ -157,6 +169,46 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
     fetchBooks(q, status);
   }
 
+  async function openOrderForBook(book: BookRow) {
+    if (!book.soldOrderId) return;
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch(`/api/orders/${book.soldOrderId}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Không tải được đơn hàng");
+        return;
+      }
+      const order = (await res.json()) as OrderRow;
+      setViewingOrder(order);
+    } catch {
+      setError("Không thể kết nối tới máy chủ");
+    }
+  }
+
+  async function resetOrphans() {
+    if (!confirm("Reset tất cả sách SOLD không có đơn về LISTED?")) return;
+    setResetting(true);
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch("/api/books/reset-orphans", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Có lỗi xảy ra");
+        return;
+      }
+      const n = data.resetCount ?? 0;
+      setNotice(`Đã dọn ${n} sách SOLD lỗi`);
+      fetchBooks(q, status);
+    } catch {
+      setError("Không thể kết nối tới máy chủ");
+    } finally {
+      setResetting(false);
+    }
+  }
+
   const maxCatCount = Math.max(...categoryBreakdown.map((c) => c.count), 1);
 
   return (
@@ -164,9 +216,20 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
       <PageHeader
         title="Kho sách"
         description="Toàn bộ sách đang có trong kho, đang bán và đã bán."
+        toolbar={
+          <Button
+            variant="secondary"
+            onClick={resetOrphans}
+            loading={resetting}
+            iconLeft={<Broom size={14} weight="bold" />}
+          >
+            Dọn sách SOLD lỗi
+          </Button>
+        }
       />
 
       {error && <Banner tone="danger">{error}</Banner>}
+      {notice && <Banner tone="success">{notice}</Banner>}
 
       {loading && books.length === 0 ? (
         <StatSkeletonGrid count={4} />
@@ -331,7 +394,7 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
               key={book.id}
               book={book}
               onEdit={() => setEditing(book)}
-              onMarkSold={() => markSold(book)}
+              onOpenOrder={() => openOrderForBook(book)}
               onDelete={() => remove(book)}
             />
           ))}
@@ -348,6 +411,13 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
           }}
         />
       )}
+
+      <OrderModal
+        isOpen={!!viewingOrder}
+        initialOrder={viewingOrder ?? undefined}
+        onClose={() => setViewingOrder(null)}
+        onSaved={() => setViewingOrder(null)}
+      />
     </div>
   );
 }
@@ -355,12 +425,12 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
 function BookCard({
   book,
   onEdit,
-  onMarkSold,
+  onOpenOrder,
   onDelete,
 }: {
   book: BookRow;
   onEdit: () => void;
-  onMarkSold: () => void;
+  onOpenOrder: () => void;
   onDelete: () => void;
 }) {
   const cfg = STATUS_LABEL[book.status];
@@ -427,18 +497,20 @@ function BookCard({
         <Button variant="ghost" size="sm" onClick={onEdit} iconLeft={<PencilSimple size={12} weight="bold" />}>
           Sửa
         </Button>
-        {book.status !== "SOLD" ? (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onMarkSold}
-            iconLeft={<CheckCircle size={12} weight="bold" />}
-          >
-            Đã bán
-          </Button>
-        ) : (
-          <span className="text-[12px] text-ink-faint">Đã hoàn tất</span>
-        )}
+        {book.status === "SOLD" ? (
+          book.soldOrderId ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onOpenOrder}
+              iconLeft={<Receipt size={12} weight="bold" />}
+            >
+              Xem đơn #{book.soldOrderId.slice(0, 6)}
+            </Button>
+          ) : (
+            <span className="text-[12px] text-ink-faint">Bán ngoài hệ thống</span>
+          )
+        ) : null}
         <Button variant="ghost" size="sm" onClick={onDelete} aria-label="Xóa">
           <TrashSimple size={14} weight="bold" />
         </Button>
