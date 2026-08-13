@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { toDateInputValue } from "@/lib/date";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
+import Modal from "./ui/Modal";
+import { Field, Input, Select, Textarea } from "./ui/Field";
+import Banner from "./ui/Banner";
+import Button from "./ui/Button";
 
 type InitialExpense = {
   id: string;
@@ -36,7 +40,7 @@ export default function ExpenseModal({
 
   async function handleSave() {
     if (!form.amountVnd || Number(form.amountVnd) <= 0) {
-      setError("Nhập số tiền");
+      setError("Nhập số tiền hợp lệ");
       return;
     }
     setError("");
@@ -89,51 +93,72 @@ export default function ExpenseModal({
   }
 
   function resetAndClose() {
-    setForm({ date: new Date().toISOString().slice(0, 10), category: EXPENSE_CATEGORIES[0], amountVnd: "", note: "" });
+    setForm({
+      date: new Date().toISOString().slice(0, 10),
+      category: EXPENSE_CATEGORIES[0],
+      amountVnd: "",
+      note: "",
+    });
     setError("");
     onClose();
   }
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md space-y-3 rounded-xl bg-white p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">{isEdit ? "Sửa chi phí" : "Thêm chi phí"}</h2>
-          <button onClick={resetAndClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">✕</button>
-        </div>
+    <Modal
+      open={isOpen}
+      onClose={resetAndClose}
+      title={isEdit ? "Sửa chi phí" : "Thêm chi phí"}
+      description={isEdit ? "Cập nhật khoản chi đã ghi nhận." : "Ghi nhận một khoản chi ngoài giá vốn sách."}
+      footer={
+        <>
+          <Button variant="secondary" onClick={resetAndClose}>Hủy</Button>
+          <Button variant="primary" onClick={handleSave} loading={saving}>
+            {isEdit ? "Cập nhật" : "Thêm"}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {error && <Banner tone="danger">{error}</Banner>}
 
-        {error && <div className="rounded bg-red-100 px-3 py-2 text-sm text-red-700">{error}</div>}
-
-        <div className="space-y-2">
-          <label className="block text-sm">
-            Ngày *
-            <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="block text-sm">
-            Loại *
-            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="mt-1 w-full rounded border border-slate-300 px-3 py-2">
-              {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
-          <label className="block text-sm">
-            Số tiền (đ) *
-            <input type="number" value={form.amountVnd} onChange={(e) => setForm({ ...form, amountVnd: e.target.value })} required className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="block text-sm">
-            Ghi chú
-            <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-          </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Ngày" required>
+            <Input
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+            />
+          </Field>
+          <Field label="Số tiền (đ)" required>
+            <Input
+              type="number"
+              inputMode="numeric"
+              value={form.amountVnd}
+              onChange={(e) => setForm({ ...form, amountVnd: e.target.value })}
+              placeholder="0"
+            />
+          </Field>
         </div>
-
-        <div className="flex justify-end gap-2 border-t pt-3">
-          <button onClick={resetAndClose} className="rounded bg-slate-200 px-4 py-2">Hủy</button>
-          <button onClick={handleSave} disabled={saving} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">
-            {saving ? "Đang lưu..." : isEdit ? "Cập nhật" : "Thêm"}
-          </button>
-        </div>
+        <Field label="Loại" required>
+          <Select
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          >
+            {EXPENSE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Ghi chú">
+          <Textarea
+            value={form.note}
+            onChange={(e) => setForm({ ...form, note: e.target.value })}
+            placeholder="Mô tả ngắn gọn…"
+          />
+        </Field>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,10 +1,40 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import {
+  Plus,
+  CaretDown,
+  Funnel,
+  ArrowClockwise,
+  Check,
+  CurrencyDollar,
+  Receipt,
+  MagnifyingGlass,
+  PencilSimple,
+  TrashSimple,
+  StackSimple,
+  CalendarBlank,
+} from "@phosphor-icons/react";
 import ExpenseModal from "@/app/components/ExpenseModal";
+import DateFilter from "@/app/components/DateFilter";
+import ExportButton from "@/app/components/ExportButton";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
+import PageHeader from "@/app/components/ui/PageHeader";
+import StatTile from "@/app/components/ui/StatTile";
+import EmptyState from "@/app/components/ui/EmptyState";
+import Pill from "@/app/components/ui/Pill";
+import Banner from "@/app/components/ui/Banner";
+import Button from "@/app/components/ui/Button";
+import Card, { CardHeader, CardBody } from "@/app/components/ui/Card";
+import { Input, Select } from "@/app/components/ui/Field";
 
-type ExpenseRow = { id: string; date: Date | string; category: string; amountVnd: number; note: string | null };
+type ExpenseRow = {
+  id: string;
+  date: Date | string;
+  category: string;
+  amountVnd: number;
+  note: string | null;
+};
 
 const SORTS = [
   { value: "dateDesc", label: "Ngày mới nhất" },
@@ -16,9 +46,20 @@ const SORTS = [
 
 type SortValue = (typeof SORTS)[number]["value"];
 
-export default function ExpenseClient({ initialExpenses }: { initialExpenses: ExpenseRow[] }) {
+const fmt = (n: number) => n.toLocaleString("vi-VN");
+const fmtDate = (d: Date | string) => new Date(d).toLocaleDateString("vi-VN");
+
+export default function ExpenseClient({
+  initialExpenses,
+  initialDateRange,
+}: {
+  initialExpenses: ExpenseRow[];
+  initialDateRange?: { from: Date; to: Date } | null;
+}) {
   const [expenses, setExpenses] = useState(initialExpenses);
-  const [modalState, setModalState] = useState<{ mode: "create" } | { mode: "edit"; expense: ExpenseRow } | null>(null);
+  const [modalState, setModalState] = useState<
+    { mode: "create" } | { mode: "edit"; expense: ExpenseRow } | null
+  >(null);
   const [error, setError] = useState("");
 
   const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set(EXPENSE_CATEGORIES));
@@ -26,6 +67,7 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
   const [maxAmount, setMaxAmount] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortValue>("dateDesc");
+  const [showFilters, setShowFilters] = useState(false);
 
   const minNum = minAmount ? Number(minAmount) : null;
   const maxNum = maxAmount ? Number(maxAmount) : null;
@@ -41,12 +83,18 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
     });
     result.sort((a, b) => {
       switch (sort) {
-        case "dateDesc": return new Date(b.date).getTime() - new Date(a.date).getTime();
-        case "dateAsc": return new Date(a.date).getTime() - new Date(b.date).getTime();
-        case "amountDesc": return b.amountVnd - a.amountVnd;
-        case "amountAsc": return a.amountVnd - b.amountVnd;
-        case "category": return a.category.localeCompare(b.category) || new Date(b.date).getTime() - new Date(a.date).getTime();
-        default: return 0;
+        case "dateDesc":
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        case "dateAsc":
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        case "amountDesc":
+          return b.amountVnd - a.amountVnd;
+        case "amountAsc":
+          return a.amountVnd - b.amountVnd;
+        case "category":
+          return a.category.localeCompare(b.category) || new Date(b.date).getTime() - new Date(a.date).getTime();
+        default:
+          return 0;
       }
     });
     return result;
@@ -57,8 +105,9 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
     const count = filtered.length;
     const byCategory = new Map<string, number>();
     for (const x of filtered) byCategory.set(x.category, (byCategory.get(x.category) ?? 0) + x.amountVnd);
-    return { total, count, byCategory };
-  }, [filtered]);
+    const totalAll = expenses.reduce((s, x) => s + x.amountVnd, 0);
+    return { total, count, byCategory, totalAll };
+  }, [filtered, expenses]);
 
   const hiddenItems = useMemo(() => {
     const idSet = new Set(filtered.map((x) => x.id));
@@ -74,11 +123,11 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
     }
     if (minNum != null) {
       const count = expenses.filter((x) => x.amountVnd < minNum).length;
-      if (count > 0) items.push({ label: `Dưới ${minNum.toLocaleString("vi-VN")}đ`, count });
+      if (count > 0) items.push({ label: `Dưới ${fmt(minNum)}đ`, count });
     }
     if (maxNum != null) {
       const count = expenses.filter((x) => x.amountVnd > maxNum).length;
-      if (count > 0) items.push({ label: `Trên ${maxNum.toLocaleString("vi-VN")}đ`, count });
+      if (count > 0) items.push({ label: `Trên ${fmt(maxNum)}đ`, count });
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -91,13 +140,18 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
   function toggleCat(c: string) {
     setSelectedCats((prev) => {
       const next = new Set(prev);
-      if (next.has(c)) next.delete(c); else next.add(c);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
       return next;
     });
   }
 
-  function selectAll() { setSelectedCats(new Set(EXPENSE_CATEGORIES)); }
-  function clearAll() { setSelectedCats(new Set()); }
+  function selectAll() {
+    setSelectedCats(new Set(EXPENSE_CATEGORIES));
+  }
+  function clearAll() {
+    setSelectedCats(new Set());
+  }
 
   function resetFilters() {
     setSelectedCats(new Set(EXPENSE_CATEGORIES));
@@ -118,7 +172,13 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
     }
   }
 
-  function handleSaved(saved: { id: string; date: Date | string; category: string; amountVnd: number; note: string | null }) {
+  function handleSaved(saved: {
+    id: string;
+    date: Date | string;
+    category: string;
+    amountVnd: number;
+    note: string | null;
+  }) {
     setExpenses((list) => {
       const idx = list.findIndex((x) => x.id === saved.id);
       if (idx >= 0) {
@@ -131,218 +191,396 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
   }
 
   const editingExpense = modalState?.mode === "edit" ? modalState.expense : undefined;
-  const hasActiveFilter = selectedCats.size !== EXPENSE_CATEGORIES.length || minAmount || maxAmount || search;
+  const hasActiveFilter =
+    selectedCats.size !== EXPENSE_CATEGORIES.length || minAmount || maxAmount || search;
   const totalCount = expenses.length;
-  const activeFilterCount = (selectedCats.size !== EXPENSE_CATEGORIES.length ? 1 : 0) + (minAmount ? 1 : 0) + (maxAmount ? 1 : 0) + (search ? 1 : 0);
+  const activeFilterCount =
+    (selectedCats.size !== EXPENSE_CATEGORIES.length ? 1 : 0) +
+    (minAmount ? 1 : 0) +
+    (maxAmount ? 1 : 0) +
+    (search ? 1 : 0);
   const [showHidden, setShowHidden] = useState(false);
+  const maxCategoryValue = stats.byCategory.size > 0 ? Math.max(...stats.byCategory.values()) : 1;
 
   return (
-    <div className="space-y-4">
-      {error && <div className="rounded bg-red-100 px-3 py-2 text-sm text-red-700">{error}</div>}
-
-      <div className="flex justify-end">
-        <button onClick={() => setModalState({ mode: "create" })} className="rounded bg-blue-600 px-4 py-2 text-white">+ Thêm chi phí</button>
-      </div>
-
-      <div className="rounded-xl border bg-white p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-medium">Bộ lọc</h2>
-            <span className={`rounded px-2 py-0.5 text-xs ${activeFilterCount > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
-              {activeFilterCount > 0 ? `Đang áp dụng ${activeFilterCount} bộ lọc` : "Không có bộ lọc"}
+    <div className="space-y-5">
+      <PageHeader
+        title="Chi phí"
+        description="Ghi nhận và phân tích chi phí ngoài sách: vận chuyển, điện, thuế…"
+        period={
+          initialDateRange ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-1.5 py-0.5 font-medium text-brand">
+              <CalendarBlank size={12} weight="bold" />
+              {initialDateRange.from.toLocaleDateString("vi-VN")} → {initialDateRange.to.toLocaleDateString("vi-VN")}
             </span>
-          </div>
-          <button onClick={resetFilters} className="rounded border border-slate-300 bg-white px-3 py-1 text-xs hover:bg-slate-50">
-            ↺ Đặt lại
-          </button>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <p className="text-xs text-slate-500">Danh mục ({selectedCats.size}/{EXPENSE_CATEGORIES.length})</p>
-              <div className="flex gap-1">
-                <button onClick={selectAll} className="rounded px-2 py-0.5 text-xs text-blue-600 hover:underline">Tất cả</button>
-                <span className="text-slate-300">|</span>
-                <button onClick={clearAll} className="rounded px-2 py-0.5 text-xs text-blue-600 hover:underline">Bỏ chọn</button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {EXPENSE_CATEGORIES.map((c) => {
-                const active = selectedCats.has(c);
-                return (
-                  <button
-                    key={c}
-                    onClick={() => toggleCat(c)}
-                    className={`rounded border px-3 py-1 text-xs ${active ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-400"}`}
-                  >
-                    {active ? "✓" : "○"} {c}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <label className="text-sm">
-              Từ (đ)
-              <input type="number" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} placeholder="0" className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-            </label>
-            <label className="text-sm">
-              Đến (đ)
-              <input type="number" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} placeholder="∞" className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-            </label>
-            <label className="text-sm">
-              Sắp xếp
-              <select value={sort} onChange={(e) => setSort(e.target.value as SortValue)} className="mt-1 w-full rounded border border-slate-300 px-3 py-2">
-                {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-            </label>
-          </div>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm trong ghi chú..." className="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
-        </div>
-      </div>
+          ) : null
+        }
+        toolbar={
+          <>
+            <DateFilter />
+            <ExportButton path="/api/export/expenses" />
+          </>
+        }
+        primaryAction={{
+          label: "Thêm chi phí",
+          onClick: () => setModalState({ mode: "create" }),
+          icon: <Plus size={14} weight="bold" />,
+        }}
+      />
 
-      <div className="rounded-xl border bg-white p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <p className="text-slate-600">
-            Hiển thị <span className="font-bold text-slate-900">{stats.count}</span> / {totalCount} mục
-            {hasActiveFilter && stats.count < totalCount && (
-              <span className="ml-2 text-xs text-amber-600">(đang ẩn {hiddenItems.length} mục)</span>
-            )}
-          </p>
-        </div>
-        {filterBreakdown.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2 text-xs">
-            {filterBreakdown.map((b, i) => (
-              <span key={i} className="rounded bg-amber-50 px-2 py-0.5 text-amber-700">
-                <strong>{b.count}</strong> bị ẩn do <em>{b.label}</em>
-              </span>
-            ))}
-            <span className="text-[10px] text-slate-400 italic">* có thể trùng giữa các bộ lọc</span>
-          </div>
-        )}
-      </div>
+      {error && <Banner tone="danger">{error}</Banner>}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="Tổng (đang lọc)" value={stats.total.toLocaleString("vi-VN") + "đ"} color="red" />
-        <StatTile label="Số mục" value={String(stats.count)} />
-        <StatTile label="TB / mục" value={stats.count > 0 ? Math.floor(stats.total / stats.count).toLocaleString("vi-VN") + "đ" : "—"} />
-        <StatTile label="Tổng tất cả" value={expenses.reduce((s, x) => s + x.amountVnd, 0).toLocaleString("vi-VN") + "đ"} sub="không lọc" />
+        <StatTile
+          label="Tổng (đang lọc)"
+          value={`${fmt(stats.total)}đ`}
+          sub={`${stats.count} mục`}
+          tone="danger"
+          icon={<Receipt size={16} weight="bold" />}
+        />
+        <StatTile
+          label="Số mục"
+          value={String(stats.count)}
+          sub={hasActiveFilter ? `từ ${totalCount} mục` : "tất cả"}
+          icon={<StackSimple size={16} weight="bold" />}
+        />
+        <StatTile
+          label="Trung bình / mục"
+          value={stats.count > 0 ? `${fmt(Math.floor(stats.total / stats.count))}đ` : "—"}
+          sub="Đang lọc"
+          tone="warning"
+          icon={<CurrencyDollar size={16} weight="bold" />}
+        />
+        <StatTile
+          label="Tổng tất cả"
+          value={`${fmt(stats.totalAll)}đ`}
+          sub="Không lọc"
+          icon={<CurrencyDollar size={16} weight="bold" />}
+        />
       </div>
 
-      {stats.byCategory.size > 0 && (
-        <div className="rounded-xl border bg-white p-4">
-          <h2 className="mb-2 text-sm font-medium">Phân bổ theo loại (đang lọc)</h2>
-          <div className="space-y-1.5">
-            {Array.from(stats.byCategory.entries())
-              .sort((a, b) => b[1] - a[1])
-              .map(([cat, total]) => {
-                const max = Math.max(...Array.from(stats.byCategory.values()));
-                return (
-                  <div key={cat} className="flex items-center gap-2 text-sm">
-                    <span className="w-28 shrink-0 text-slate-700">{cat}</span>
-                    <div className="h-4 flex-1 rounded bg-slate-100">
-                      <div className="h-4 rounded bg-red-400" style={{ width: `${(total / max) * 100}%` }} />
-                    </div>
-                    <span className="w-28 text-right font-medium">{total.toLocaleString("vi-VN")}đ</span>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      )}
-
-      {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed bg-white p-8 text-center">
-          {totalCount === 0 ? (
-            <p className="text-slate-400">Chưa có chi phí — bấm &quot;+ Thêm chi phí&quot;</p>
-          ) : (
-            <>
-              <p className="text-slate-500">Không có chi phí nào khớp bộ lọc hiện tại</p>
-              <p className="mt-1 text-xs text-slate-400">Có {totalCount} mục trong DB nhưng bị ẩn bởi {activeFilterCount} bộ lọc</p>
-              {filterBreakdown.length > 0 && (
-                <div className="mx-auto mt-3 inline-flex flex-wrap justify-center gap-1.5 text-xs">
-                  {filterBreakdown.map((b, i) => (
-                    <span key={i} className="rounded bg-amber-100 px-2 py-0.5 text-amber-700">
-                      {b.label}: ẩn <strong>{b.count}</strong>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <button onClick={resetFilters} className="mt-3 rounded bg-blue-600 px-4 py-2 text-sm text-white">↺ Xóa tất cả bộ lọc</button>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="max-h-[28rem] overflow-auto rounded-xl border bg-white">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-3 py-2">Ngày</th>
-                <th className="px-3 py-2">Loại</th>
-                <th className="px-3 py-2">Ghi chú</th>
-                <th className="px-3 py-2 text-right">Số tiền</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((x) => (
-                <tr key={x.id} className="border-b hover:bg-slate-50">
-                  <td className="px-3 py-2">{new Date(x.date).toLocaleDateString("vi-VN")}</td>
-                  <td className="px-3 py-2">
-                    <span className="rounded bg-slate-100 px-2 py-0.5 text-xs">{x.category}</span>
-                  </td>
-                  <td className="px-3 py-2 text-slate-500">{x.note ?? "—"}</td>
-                  <td className="px-3 py-2 text-right font-medium">{x.amountVnd.toLocaleString("vi-VN")}đ</td>
-                  <td className="px-3 py-2 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => setModalState({ mode: "edit", expense: x })} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">Sửa</button>
-                      <button onClick={() => remove(x)} className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">Xóa</button>
-                    </div>
-                  </td>
-                </tr>
+      {/* Filter panel */}
+      <Card>
+        <CardBody>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowFilters((s) => !s)}
+              iconLeft={<Funnel size={14} weight="bold" />}
+              iconRight={<CaretDown size={12} weight="bold" className={showFilters ? "rotate-180" : ""} />}
+            >
+              Bộ lọc
+            </Button>
+            <div className="relative flex-1 min-w-[200px]">
+              <MagnifyingGlass
+                size={14}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint"
+              />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm trong ghi chú…"
+                className="pl-8"
+              />
+            </div>
+            <Select value={sort} onChange={(e) => setSort(e.target.value as SortValue)} className="w-auto">
+              {SORTS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </Select>
+            {activeFilterCount > 0 && (
+              <Pill tone="brand">
+                <Funnel size={10} weight="bold" /> Đang áp dụng {activeFilterCount} bộ lọc
+              </Pill>
+            )}
+          </div>
+
+          {showFilters && (
+            <div className="mt-4 space-y-4 border-t border-hairline pt-4">
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[12.5px] font-medium text-ink-muted">
+                    Danh mục <span className="text-ink-faint">({selectedCats.size}/{EXPENSE_CATEGORIES.length})</span>
+                  </p>
+                  <div className="flex items-center gap-2 text-[12px]">
+                    <button onClick={selectAll} className="text-brand hover:underline">
+                      Tất cả
+                    </button>
+                    <span className="text-ink-faint">·</span>
+                    <button onClick={clearAll} className="text-brand hover:underline">
+                      Bỏ chọn
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {EXPENSE_CATEGORIES.map((c) => {
+                    const active = selectedCats.has(c);
+                    return (
+                      <button
+                        key={c}
+                        onClick={() => toggleCat(c)}
+                        className={[
+                          "inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[12px] transition-colors",
+                          active
+                            ? "border-brand bg-brand-soft text-brand"
+                            : "border-hairline-strong bg-surface text-ink-faint hover:text-ink-muted",
+                        ].join(" ")}
+                      >
+                        <span
+                          className={[
+                            "flex h-3.5 w-3.5 items-center justify-center rounded-full border",
+                            active ? "border-brand bg-brand text-on-brand" : "border-hairline-strong bg-surface",
+                          ].join(" ")}
+                          aria-hidden
+                        >
+                          {active && <Check size={9} weight="bold" />}
+                        </span>
+                        {c}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-[12px] font-medium text-ink-muted">Từ (đ)</label>
+                  <Input
+                    type="number"
+                    value={minAmount}
+                    onChange={(e) => setMinAmount(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[12px] font-medium text-ink-muted">Đến (đ)</label>
+                  <Input
+                    type="number"
+                    value={maxAmount}
+                    onChange={(e) => setMaxAmount(e.target.value)}
+                    placeholder="∞"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetFilters}
+                  iconLeft={<ArrowClockwise size={12} weight="bold" />}
+                >
+                  Đặt lại bộ lọc
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* Filter status line */}
+      {hasActiveFilter && (
+        <Card>
+          <CardBody>
+            <p className="text-[13px] text-ink-muted">
+              Hiển thị <strong className="font-tabular text-ink">{stats.count}</strong> / {totalCount} mục
+              {stats.count < totalCount && (
+                <span className="ml-1 text-ink-faint">(đang ẩn {hiddenItems.length})</span>
+              )}
+            </p>
+            {filterBreakdown.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+                <span className="text-ink-faint">Lý do ẩn:</span>
+                {filterBreakdown.map((b, i) => (
+                  <Pill key={i} tone="warning" size="sm">
+                    {b.label}: {b.count}
+                  </Pill>
+                ))}
+              </div>
+            )}
+          </CardBody>
+        </Card>
       )}
 
+      {/* Category breakdown */}
+      {stats.byCategory.size > 0 && (
+        <Card>
+          <CardHeader title="Phân bổ theo loại" description="Đang lọc" />
+          <CardBody>
+            <div className="space-y-2.5">
+              {Array.from(stats.byCategory.entries())
+                .sort((a, b) => b[1] - a[1])
+                .map(([cat, total]) => (
+                  <div key={cat} className="grid grid-cols-[140px_1fr_96px] items-center gap-3">
+                    <span className="truncate text-[13px] text-ink-muted">{cat}</span>
+                    <div className="h-2 overflow-hidden rounded-full bg-surface-soft">
+                      <div
+                        className="h-full rounded-full bg-danger/80"
+                        style={{ width: `${(total / maxCategoryValue) * 100}%` }}
+                      />
+                    </div>
+                    <span className="font-tabular text-right text-[13px] font-medium text-ink">
+                      {fmt(total)}đ
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Table */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={<Receipt size={24} weight="duotone" />}
+          title={totalCount === 0 ? "Chưa có chi phí" : "Không có kết quả khớp bộ lọc"}
+          description={
+            totalCount === 0
+              ? "Bấm Thêm chi phí để ghi nhận khoản chi đầu tiên."
+              : `Có ${totalCount} mục trong DB nhưng bị ẩn bởi ${activeFilterCount} bộ lọc.`
+          }
+          action={
+            hasActiveFilter ? (
+              <Button variant="primary" onClick={resetFilters} iconLeft={<ArrowClockwise size={14} weight="bold" />}>
+                Xóa tất cả bộ lọc
+              </Button>
+            ) : null
+          }
+        />
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-surface-soft text-left text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+                <tr>
+                  <th className="px-4 py-2">Ngày</th>
+                  <th className="px-4 py-2">Loại</th>
+                  <th className="px-4 py-2">Ghi chú</th>
+                  <th className="px-4 py-2 text-right">Số tiền</th>
+                  <th className="w-[100px] px-4 py-2 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((x) => (
+                  <tr key={x.id} className="border-t border-hairline hover:bg-surface-soft">
+                    <td className="px-4 py-2.5 text-[13px] text-ink-muted">{fmtDate(x.date)}</td>
+                    <td className="px-4 py-2.5">
+                      <Pill tone="neutral" size="sm">
+                        {x.category}
+                      </Pill>
+                    </td>
+                    <td className="max-w-[280px] truncate px-4 py-2.5 text-[13px] text-ink-faint">
+                      {x.note ?? "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-tabular text-[13px] font-semibold text-ink">
+                      {fmt(x.amountVnd)}đ
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setModalState({ mode: "edit", expense: x })}
+                          aria-label="Sửa"
+                        >
+                          <PencilSimple size={13} weight="bold" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => remove(x)}
+                          aria-label="Xóa"
+                        >
+                          <TrashSimple size={13} weight="bold" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Hidden items peek */}
       {hasActiveFilter && hiddenItems.length > 0 && (
-        <div className="rounded-xl border bg-amber-50/50 p-3">
-          <button onClick={() => setShowHidden((s) => !s)} className="flex w-full items-center justify-between text-left text-sm">
-            <span className="font-medium text-amber-800">
-              {showHidden ? "▾" : "▸"} Xem {hiddenItems.length} mục đang bị ẩn
+        <Card>
+          <button
+            onClick={() => setShowHidden((s) => !s)}
+            className="flex w-full items-center justify-between px-4 py-3 text-left text-[13px] text-ink-muted transition-colors hover:bg-surface-soft"
+            aria-expanded={showHidden}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <CaretDown
+                size={12}
+                weight="bold"
+                className={["transition-transform duration-150", showHidden ? "rotate-180" : ""].join(" ")}
+              />
+              <span>
+                <strong className="text-warning">{hiddenItems.length}</strong> mục đang bị ẩn
+              </span>
             </span>
-            <span className="text-xs text-amber-600">bấm để mở rộng</span>
+            <span className="text-[12px] text-ink-faint">Bấm để mở rộng</span>
           </button>
           {showHidden && (
-            <div className="mt-2 max-h-60 overflow-auto rounded border bg-white">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <div className="overflow-x-auto border-t border-hairline">
+              <table className="w-full">
+                <thead className="bg-surface-soft text-left text-[11px] font-medium uppercase tracking-wider text-ink-faint">
                   <tr>
-                    <th className="px-3 py-2">Ngày</th>
-                    <th className="px-3 py-2">Loại</th>
-                    <th className="px-3 py-2">Số tiền</th>
-                    <th className="px-3 py-2">Lý do bị ẩn</th>
-                    <th />
+                    <th className="px-4 py-2">Ngày</th>
+                    <th className="px-4 py-2">Loại</th>
+                    <th className="px-4 py-2 text-right">Số tiền</th>
+                    <th className="px-4 py-2">Lý do bị ẩn</th>
+                    <th className="w-[100px] px-4 py-2 text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {hiddenItems.map((x) => {
                     const reasons: string[] = [];
                     if (!selectedCats.has(x.category)) reasons.push("Loại");
-                    if (minNum != null && x.amountVnd < minNum) reasons.push(`Dưới ${minNum.toLocaleString("vi-VN")}đ`);
-                    if (maxNum != null && x.amountVnd > maxNum) reasons.push(`Trên ${maxNum.toLocaleString("vi-VN")}đ`);
-                    if (search.trim() && !(x.note ?? "").toLowerCase().includes(search.trim().toLowerCase())) reasons.push(`Không khớp "${search}"`);
+                    if (minNum != null && x.amountVnd < minNum)
+                      reasons.push(`Dưới ${fmt(minNum)}đ`);
+                    if (maxNum != null && x.amountVnd > maxNum)
+                      reasons.push(`Trên ${fmt(maxNum)}đ`);
+                    if (
+                      search.trim() &&
+                      !(x.note ?? "").toLowerCase().includes(search.trim().toLowerCase())
+                    )
+                      reasons.push(`Không khớp "${search}"`);
                     return (
-                      <tr key={x.id} className="border-b hover:bg-slate-50">
-                        <td className="px-3 py-2">{new Date(x.date).toLocaleDateString("vi-VN")}</td>
-                        <td className="px-3 py-2"><span className="rounded bg-slate-100 px-2 py-0.5 text-xs">{x.category}</span></td>
-                        <td className="px-3 py-2 text-right">{x.amountVnd.toLocaleString("vi-VN")}đ</td>
-                        <td className="px-3 py-2 text-xs text-amber-700">{reasons.join(", ") || "—"}</td>
-                        <td className="px-3 py-2 text-right">
+                      <tr key={x.id} className="border-t border-hairline hover:bg-surface-soft">
+                        <td className="px-4 py-2.5 text-[13px] text-ink-muted">{fmtDate(x.date)}</td>
+                        <td className="px-4 py-2.5">
+                          <Pill tone="neutral" size="sm">
+                            {x.category}
+                          </Pill>
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-tabular text-[13px] text-ink">
+                          {fmt(x.amountVnd)}đ
+                        </td>
+                        <td className="px-4 py-2.5 text-[12px] text-warning">{reasons.join(", ") || "—"}</td>
+                        <td className="px-4 py-2.5">
                           <div className="flex justify-end gap-1">
-                            <button onClick={() => setModalState({ mode: "edit", expense: x })} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">Sửa</button>
-                            <button onClick={() => remove(x)} className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">Xóa</button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setModalState({ mode: "edit", expense: x })}
+                              aria-label="Sửa"
+                            >
+                              <PencilSimple size={13} weight="bold" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => remove(x)}
+                              aria-label="Xóa"
+                            >
+                              <TrashSimple size={13} weight="bold" />
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -352,7 +590,7 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
               </table>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       <ExpenseModal
@@ -361,17 +599,6 @@ export default function ExpenseClient({ initialExpenses }: { initialExpenses: Ex
         onSaved={handleSaved}
         initialExpense={editingExpense}
       />
-    </div>
-  );
-}
-
-function StatTile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: "red" | "green" | "blue" }) {
-  const valueColor = color === "red" ? "text-red-700" : color === "green" ? "text-green-700" : color === "blue" ? "text-blue-700" : "text-slate-900";
-  return (
-    <div className="rounded-xl border bg-white p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className={`mt-0.5 text-lg font-bold ${valueColor}`}>{value}</p>
-      {sub && <p className="text-[10px] text-slate-400">{sub}</p>}
     </div>
   );
 }

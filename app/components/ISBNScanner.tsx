@@ -2,6 +2,10 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { Html5Qrcode } from "html5-qrcode";
+import { Camera, Stop, MagnifyingGlass, Warning, Spinner } from "@phosphor-icons/react";
+import Button from "./ui/Button";
+import { Input } from "./ui/Field";
+import Banner from "./ui/Banner";
 
 type BookInfo = {
   title: string;
@@ -31,21 +35,32 @@ export default function ISBNScanner({
   const onFoundRef = useRef(onFound);
   const processingRef = useRef(false);
 
-  useEffect(() => { onFoundRef.current = onFound; });
+  useEffect(() => {
+    onFoundRef.current = onFound;
+  });
 
   useEffect(() => {
     let cancelled = false;
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      queueMicrotask(() => { if (!cancelled) setCameraSupported(false); });
-      return () => { cancelled = true; };
+      queueMicrotask(() => {
+        if (!cancelled) setCameraSupported(false);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
-    navigator.mediaDevices.enumerateDevices()
+    navigator.mediaDevices
+      .enumerateDevices()
       .then((devices) => {
         if (cancelled) return;
         setCameraSupported(devices.some((d) => d.kind === "videoinput"));
       })
-      .catch(() => { if (!cancelled) setCameraSupported(true); });
-    return () => { cancelled = true; };
+      .catch(() => {
+        if (!cancelled) setCameraSupported(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function lookup(code: string) {
@@ -92,7 +107,9 @@ export default function ISBNScanner({
     const s = scannerRef.current;
     scannerRef.current = null;
     s.stop().catch(() => {});
-    try { s.clear(); } catch {}
+    try {
+      s.clear();
+    } catch {}
     setScanning(false);
     lookup(clean);
   }
@@ -108,7 +125,9 @@ export default function ISBNScanner({
 
         const scanner = new Html5Qrcode(containerId);
         if (cancelled) {
-          try { scanner.clear(); } catch {}
+          try {
+            scanner.clear();
+          } catch {}
           return;
         }
         scannerRef.current = scanner;
@@ -148,7 +167,10 @@ export default function ISBNScanner({
           setError("Không tìm thấy camera trên thiết bị");
         } else if (msg.includes("NotReadableError") || msg.includes("TrackStartError")) {
           setError("Camera đang được dùng bởi ứng dụng khác");
-        } else if (msg.includes("OverconstrainedError") || msg.includes("ConstraintNotSatisfiedError")) {
+        } else if (
+          msg.includes("OverconstrainedError") ||
+          msg.includes("ConstraintNotSatisfiedError")
+        ) {
           setError("Camera không hỗ trợ cấu hình yêu cầu");
         } else {
           setError(`Không mở được camera: ${msg}`);
@@ -164,7 +186,9 @@ export default function ISBNScanner({
       scannerRef.current = null;
       if (s) {
         s.stop().catch(() => {});
-        try { s.clear(); } catch {}
+        try {
+          s.clear();
+        } catch {}
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -174,53 +198,75 @@ export default function ISBNScanner({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         {cameraSupported !== false && (
-          <button
-            onClick={() => { setError(""); setScanning((s) => !s); }}
-            className="rounded bg-blue-600 px-4 py-2 text-sm text-white"
+          <Button
+            variant={scanning ? "secondary" : "primary"}
+            size="md"
+            onClick={() => {
+              setError("");
+              setScanning((s) => !s);
+            }}
+            iconLeft={
+              scanning ? <Stop size={14} weight="bold" /> : <Camera size={14} weight="bold" />
+            }
           >
-            {scanning ? "Dừng quét" : "📷 Quét barcode"}
-          </button>
+            {scanning ? "Dừng quét" : "Quét barcode"}
+          </Button>
         )}
-        <div className="flex flex-1 items-center gap-2">
-          <input
-            value={isbn}
-            onChange={(e) => setIsbn(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleManual()}
-            placeholder="Hoặc nhập ISBN/Barcode tay rồi bấm Tra"
-            className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
-          />
-          <button
-            onClick={handleManual}
-            disabled={!isbn || looking}
-            className="rounded bg-slate-100 px-3 py-2 text-sm disabled:opacity-50"
-          >
-            {looking ? "..." : "Tra"}
-          </button>
+        <div className="relative flex flex-1 items-center gap-2">
+          <div className="relative flex-1">
+            <MagnifyingGlass
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint"
+            />
+            <Input
+              value={isbn}
+              onChange={(e) => setIsbn(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleManual()}
+              placeholder="Hoặc nhập ISBN/Barcode rồi bấm Tra"
+              className="pl-8"
+            />
+          </div>
+          <Button variant="secondary" onClick={handleManual} disabled={!isbn || looking}>
+            {looking ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Spinner size={12} /> Đang tra
+              </span>
+            ) : (
+              "Tra"
+            )}
+          </Button>
         </div>
       </div>
 
       {cameraSupported === false && (
-        <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-700">
-          Thiết bị không có camera — nhập ISBN tay bên trên
-        </p>
+        <Banner tone="warning">
+          <span className="inline-flex items-center gap-1.5">
+            <Warning size={14} weight="bold" />
+            Thiết bị không có camera — nhập ISBN tay để tra.
+          </span>
+        </Banner>
       )}
 
       {scanning && cameraSupported !== false && (
-        <div className="overflow-hidden rounded-xl border bg-black">
+        <div className="overflow-hidden rounded-lg border border-hairline bg-black">
           <div
             ref={containerRef}
             id={containerId}
             className="mx-auto w-full max-w-md"
             style={{ minHeight: "300px" }}
           />
-          <p className="p-2 text-center text-xs text-slate-400">
-            Hướng camera vào barcode/ISBN trên bìa sách — giữ chắc tay 5–10s
+          <p className="bg-ink px-3 py-2 text-center text-[11.5px] text-on-dark/80">
+            Hướng camera vào barcode/ISBN trên bìa sách — giữ chắc tay 5–10 giây.
           </p>
         </div>
       )}
 
-      {error && <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {looking && <p className="text-sm text-blue-600">Đang tra cứu sách trên Google Books...</p>}
+      {error && <Banner tone="danger">{error}</Banner>}
+      {looking && (
+        <span className="inline-flex items-center gap-1.5 text-[12.5px] text-info">
+          <Spinner size={12} /> Đang tra cứu trên Google Books…
+        </span>
+      )}
     </div>
   );
 }

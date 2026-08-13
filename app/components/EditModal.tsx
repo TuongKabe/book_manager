@@ -1,32 +1,49 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Modal from "./ui/Modal";
+import Button from "./ui/Button";
 
 export default function EditModal({
   title,
+  description,
   onClose,
   onSave,
   saving = false,
   children,
+  size = "md",
+  cancelLabel = "Hủy",
+  saveLabel = "Lưu",
 }: {
-  title: string;
+  title: ReactNode;
+  description?: ReactNode;
   onClose: () => void;
   onSave: () => void;
   saving?: boolean;
   children: ReactNode;
+  size?: "sm" | "md" | "lg" | "xl";
+  cancelLabel?: ReactNode;
+  saveLabel?: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-md space-y-3 overflow-auto rounded-xl bg-white p-5">
-        <h2 className="text-lg font-bold">{title}</h2>
-        {children}
-        <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="rounded bg-slate-200 px-4 py-2">Hủy</button>
-          <button onClick={onSave} disabled={saving} className="rounded bg-blue-600 px-4 py-2 text-white">
-            {saving ? "Đang lưu..." : "Lưu"}
-          </button>
-        </div>
-      </div>
-    </div>
+    <Modal
+      open
+      onClose={onClose}
+      title={title}
+      description={description}
+      size={size}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            {cancelLabel}
+          </Button>
+          <Button variant="primary" onClick={onSave} loading={saving}>
+            {saveLabel}
+          </Button>
+        </>
+      }
+    >
+      {children}
+    </Modal>
   );
 }

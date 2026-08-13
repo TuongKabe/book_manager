@@ -1,19 +1,209 @@
 @import "tailwindcss";
 
+/* ---------- DESIGN TOKENS ---------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces — warm Notion-style canvas, paper-soft */
+  --canvas: oklch(98.4% 0.005 95);
+  --surface: oklch(100% 0 0);
+  --surface-soft: oklch(97% 0.006 90);
+  --surface-tint: oklch(96.6% 0.014 280);
+  --surface-warm: oklch(97.8% 0.015 80);
+
+  /* Ink */
+  --ink: oklch(22% 0.012 280);
+  --ink-muted: oklch(46% 0.01 280);
+  --ink-faint: oklch(60% 0.008 280);
+  --ink-disabled: oklch(72% 0.006 280);
+  --on-brand: oklch(99% 0 0);
+
+  /* Brand — Notion purple, restrained */
+  --brand: oklch(50% 0.21 280);
+  --brand-hover: oklch(45% 0.21 280);
+  --brand-soft: oklch(95% 0.04 280);
+  --brand-tint: oklch(93% 0.05 280);
+  --brand-deep: oklch(38% 0.18 280);
+
+  /* Semantic */
+  --success: oklch(56% 0.16 150);
+  --success-soft: oklch(94% 0.05 150);
+  --success-tint: oklch(91% 0.07 150);
+  --danger: oklch(56% 0.22 25);
+  --danger-soft: oklch(95% 0.04 25);
+  --danger-tint: oklch(92% 0.05 25);
+  --warning: oklch(72% 0.17 70);
+  --warning-soft: oklch(95% 0.06 80);
+  --warning-tint: oklch(92% 0.07 80);
+  --info: oklch(60% 0.15 230);
+  --info-soft: oklch(94% 0.04 230);
+  --info-tint: oklch(91% 0.05 230);
+
+  /* Status tints (book lifecycle) */
+  --status-intake-ink: oklch(45% 0.02 280);
+  --status-intake-soft: oklch(94% 0.01 280);
+  --status-listed-ink: oklch(50% 0.18 230);
+  --status-listed-soft: oklch(94% 0.04 230);
+  --status-sold-ink: oklch(50% 0.16 150);
+  --status-sold-soft: oklch(94% 0.05 150);
+
+  /* Lines */
+  --hairline: oklch(92% 0.005 280);
+  --hairline-strong: oklch(85% 0.008 280);
+
+  /* Shadows — tinted to canvas, never pure black */
+  --shadow-xs: 0 1px 2px oklch(20% 0.01 280 / 0.04);
+  --shadow-sm: 0 2px 4px oklch(20% 0.01 280 / 0.05), 0 1px 2px oklch(20% 0.01 280 / 0.04);
+  --shadow-md: 0 6px 16px oklch(20% 0.01 280 / 0.08), 0 2px 4px oklch(20% 0.01 280 / 0.04);
+  --shadow-lg: 0 12px 32px oklch(20% 0.01 280 / 0.10), 0 4px 8px oklch(20% 0.01 280 / 0.04);
+  --shadow-popover: 0 12px 32px oklch(20% 0.01 280 / 0.12), 0 2px 4px oklch(20% 0.01 280 / 0.06);
+
+  /* Radii — one scale, locked */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* Font */
+  --font-sans: var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  --font-num: var(--font-jb-mono), "JetBrains Mono", ui-monospace, monospace;
+
+  /* Layout */
+  --sidebar-w: 232px;
+  --header-h: 56px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ---------- @THEME: expose tokens to Tailwind utilities ---------- */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-surface-tint: var(--surface-tint);
+  --color-surface-warm: var(--surface-warm);
+
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-ink-disabled: var(--ink-disabled);
+  --color-on-brand: var(--on-brand);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-deep: var(--brand-deep);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-tint: var(--success-tint);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-tint: var(--danger-tint);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-tint: var(--warning-tint);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-tint: var(--info-tint);
+
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-num);
+}
+
+/* ---------- BASE ---------- */
+* {
+  border-color: var(--hairline);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss03", "cv02";
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  min-height: 100dvh;
+}
+
+/* Tabular numerals for financial figures */
+.num,
+.font-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "cv11";
+  letter-spacing: -0.015em;
+}
+
+/* Focus ring */
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--brand) 60%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Scrollbar — subtle */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--hairline-strong);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+  background-clip: content-box;
+}
+
+/* Selection */
+::selection {
+  background: color-mix(in oklch, var(--brand) 22%, transparent);
+  color: var(--ink);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- UTILITY: hairline divider ---------- */
+.hairline {
+  border-color: var(--hairline);
+}
+.hairline-strong {
+  border-color: var(--hairline-strong);
 }

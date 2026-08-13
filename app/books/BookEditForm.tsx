@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { ChangeEvent } from "react";
 import type { BookRow } from "./BookListClient";
 import EditModal from "@/app/components/EditModal";
+import { Field, Input, Select, Textarea } from "@/app/components/ui/Field";
+import Banner from "@/app/components/ui/Banner";
 
 const CONDITIONS = ["NEW", "LIKE_NEW", "VG", "GOOD", "FAIR", "POOR"];
 
@@ -21,14 +23,14 @@ export default function BookEditForm({
     author: book.author ?? "",
     category: book.category ?? "",
     condition: book.condition ?? "VG",
-    listPriceVnd: book.listPriceVnd ?? "",
-    purchaseCostVnd: book.purchaseCostVnd ?? "",
+    listPriceVnd: book.listPriceVnd != null ? String(book.listPriceVnd) : "",
+    purchaseCostVnd: book.purchaseCostVnd != null ? String(book.purchaseCostVnd) : "",
     notes: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function submit() {
@@ -57,20 +59,62 @@ export default function BookEditForm({
   }
 
   return (
-    <EditModal title="Sửa sách" onClose={onClose} onSave={submit} saving={saving}>
-      {error && <div className="rounded bg-red-100 px-3 py-2 text-sm text-red-700">{error}</div>}
-      <input value={form.title} onChange={set("title")} placeholder="Tiêu đề" className="w-full rounded border border-slate-300 px-3 py-2" />
-      <input value={form.author} onChange={set("author")} placeholder="Tác giả" className="w-full rounded border border-slate-300 px-3 py-2" />
-      <input value={form.category} onChange={set("category")} placeholder="Phân loại" className="w-full rounded border border-slate-300 px-3 py-2" />
-      <select value={form.condition} onChange={set("condition")} className="w-full rounded border border-slate-300 px-3 py-2">
-        {book.condition && !CONDITIONS.includes(book.condition) && (
-          <option value={book.condition}>{book.condition}</option>
-        )}
-        {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-      </select>
-      <input value={form.listPriceVnd} onChange={set("listPriceVnd")} type="number" placeholder="Giá bán (đ)" className="w-full rounded border border-slate-300 px-3 py-2" />
-      <input value={form.purchaseCostVnd} onChange={set("purchaseCostVnd")} type="number" placeholder="Giá nhập (đ)" className="w-full rounded border border-slate-300 px-3 py-2" />
-      <input value={form.notes} onChange={set("notes")} placeholder="Ghi chú" className="w-full rounded border border-slate-300 px-3 py-2" />
+    <EditModal
+      title="Sửa sách"
+      description={book.title}
+      onClose={onClose}
+      onSave={submit}
+      saving={saving}
+    >
+      {error && <Banner tone="danger">{error}</Banner>}
+      <div className="space-y-3">
+        <Field label="Tiêu đề">
+          <Input value={form.title} onChange={set("title")} />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Tác giả">
+            <Input value={form.author} onChange={set("author")} placeholder="Tác giả" />
+          </Field>
+          <Field label="Phân loại">
+            <Input value={form.category} onChange={set("category")} placeholder="Phân loại" />
+          </Field>
+        </div>
+        <Field label="Tình trạng">
+          <Select value={form.condition} onChange={set("condition")}>
+            {book.condition && !CONDITIONS.includes(book.condition) && (
+              <option value={book.condition}>{book.condition}</option>
+            )}
+            {CONDITIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Giá bán (đ)">
+            <Input
+              value={form.listPriceVnd}
+              onChange={set("listPriceVnd")}
+              type="number"
+              inputMode="numeric"
+              placeholder="0"
+            />
+          </Field>
+          <Field label="Giá nhập (đ)">
+            <Input
+              value={form.purchaseCostVnd}
+              onChange={set("purchaseCostVnd")}
+              type="number"
+              inputMode="numeric"
+              placeholder="0"
+            />
+          </Field>
+        </div>
+        <Field label="Ghi chú">
+          <Textarea value={form.notes} onChange={set("notes")} placeholder="Ghi chú thêm…" />
+        </Field>
+      </div>
     </EditModal>
   );
 }

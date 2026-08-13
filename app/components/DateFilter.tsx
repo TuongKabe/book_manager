@@ -2,6 +2,8 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState } from "react";
+import { CaretDown, CalendarBlank } from "@phosphor-icons/react";
+import Button from "./ui/Button";
 
 const PRESETS: { value: string; label: string }[] = [
   { value: "all", label: "Tất cả" },
@@ -9,7 +11,7 @@ const PRESETS: { value: string; label: string }[] = [
   { value: "week", label: "Tuần này" },
   { value: "month", label: "Tháng này" },
   { value: "year", label: "Năm nay" },
-  { value: "custom", label: "Tùy chỉnh" },
+  { value: "custom", label: "Tùy chỉnh…" },
 ];
 
 function isoDate(d: Date): string {
@@ -23,17 +25,21 @@ export default function DateFilter() {
   const from = searchParams.get("from") || "";
   const to = searchParams.get("to") || "";
   const [preset, setPreset] = useState<string>(!from && !to ? "all" : "custom");
+  const [open, setOpen] = useState(false);
 
   function updateUrl(newFrom: string, newTo: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (newFrom) params.set("from", newFrom); else params.delete("from");
-    if (newTo) params.set("to", newTo); else params.delete("to");
+    if (newFrom) params.set("from", newFrom);
+    else params.delete("from");
+    if (newTo) params.set("to", newTo);
+    else params.delete("to");
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
   function applyPreset(p: string) {
     setPreset(p);
+    setOpen(false);
     const now = new Date();
     const todayStr = isoDate(now);
 
@@ -64,17 +70,58 @@ export default function DateFilter() {
     }
   }
 
+  const currentLabel = PRESETS.find((p) => p.value === preset)?.label ?? "Tùy chỉnh";
+
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <select value={preset} onChange={(e) => applyPreset(e.target.value)} className="rounded border border-slate-300 px-3 py-2 text-sm">
-        {PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-      </select>
+      <div className="relative">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setOpen((o) => !o)}
+          iconLeft={<CalendarBlank size={12} weight="bold" className="text-brand" />}
+          iconRight={<CaretDown size={12} weight="bold" className={open ? "rotate-180" : ""} />}
+        >
+          {currentLabel}
+        </Button>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} aria-hidden />
+            <div className="absolute right-0 top-[calc(100%+4px)] z-30 w-44 rounded-lg border border-hairline bg-surface p-1 shadow-popover">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.value}
+                  onClick={() => applyPreset(p.value)}
+                  className={[
+                    "flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors",
+                    preset === p.value
+                      ? "bg-brand-soft text-brand"
+                      : "text-ink hover:bg-surface-soft",
+                  ].join(" ")}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
       {preset === "custom" && (
-        <>
-          <input type="date" value={from} onChange={(e) => updateUrl(e.target.value, to)} className="rounded border border-slate-300 px-3 py-2 text-sm" />
-          <span className="text-slate-400">→</span>
-          <input type="date" value={to} onChange={(e) => updateUrl(from, e.target.value)} className="rounded border border-slate-300 px-3 py-2 text-sm" />
-        </>
+        <div className="flex items-center gap-1">
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => updateUrl(e.target.value, to)}
+            className="h-8 rounded-md border border-hairline-strong bg-surface px-2 text-[13px] text-ink transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none"
+          />
+          <span className="text-ink-faint">→</span>
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => updateUrl(from, e.target.value)}
+            className="h-8 rounded-md border border-hairline-strong bg-surface px-2 text-[13px] text-ink transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none"
+          />
+        </div>
       )}
     </div>
   );

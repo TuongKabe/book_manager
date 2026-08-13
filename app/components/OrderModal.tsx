@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { Plus, MagnifyingGlass, Book } from "@phosphor-icons/react";
 import { toDateInputValue } from "@/lib/date";
+import Modal from "./ui/Modal";
+import { Field, Input, Select, Textarea } from "./ui/Field";
+import Banner from "./ui/Banner";
+import Button from "./ui/Button";
 
 type BookRow = {
   id: string;
@@ -85,11 +90,11 @@ export default function OrderModal({
 
   const subtotal = useMemo(
     () => orderBooks.reduce((sum, b) => sum + (b.listPriceVnd ?? 0), 0),
-    [orderBooks]
+    [orderBooks],
   );
   const totalWeight = useMemo(
     () => orderBooks.reduce((sum, b) => sum + (b.weightGrams ?? 0), 0),
-    [orderBooks]
+    [orderBooks],
   );
   const shippingFee = Number(form.shippingFee) || 0;
   const grandTotal = subtotal + shippingFee;
@@ -105,10 +110,15 @@ export default function OrderModal({
     }
   }
 
+  function clearAll() {
+    const ids = orderBooks.map((b) => b.id);
+    setOrderBooks([]);
+    setRemovedBookIds((prev) => Array.from(new Set([...prev, ...ids])));
+  }
+
   async function handleSave() {
     setError("");
     setSaving(true);
-
     try {
       if (isEdit && initialOrder) {
         const patchRes = await fetch(`/api/orders/${initialOrder.id}`, {
@@ -172,7 +182,17 @@ export default function OrderModal({
   }
 
   function resetAndClose() {
-    setForm({ date: new Date().toISOString().slice(0, 10), customerName: "", customerPhone: "", customerAddress: "", channel: "", note: "", weightGrams: "", shippingFee: "", shippingUnit: "GHN" });
+    setForm({
+      date: new Date().toISOString().slice(0, 10),
+      customerName: "",
+      customerPhone: "",
+      customerAddress: "",
+      channel: "",
+      note: "",
+      weightGrams: "",
+      shippingFee: "",
+      shippingUnit: "GHN",
+    });
     setOrderBooks([]);
     setRemovedBookIds([]);
     setAvailableBooks([]);
@@ -181,148 +201,259 @@ export default function OrderModal({
     onClose();
   }
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[95vh] w-full max-w-2xl space-y-3 overflow-auto rounded-xl bg-white p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">{isEdit ? "Sửa đơn bán" : "Tạo đơn bán hàng"}</h2>
-          <button onClick={resetAndClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">✕</button>
-        </div>
+    <Modal
+      open={isOpen}
+      onClose={resetAndClose}
+      title={isEdit ? "Sửa đơn bán" : "Tạo đơn bán"}
+      description={isEdit ? "Cập nhật thông tin đơn và sách đã chọn." : "Chọn sách từ kho, nhập thông tin khách và hoàn tất đơn."}
+      size="xl"
+      footer={
+        <>
+          <Button variant="secondary" onClick={resetAndClose}>
+            Hủy
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            loading={saving}
+            disabled={orderBooks.length === 0}
+          >
+            {isEdit ? "Cập nhật" : "Lưu"} đơn ({orderBooks.length} sách)
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        {error && <Banner tone="danger">{error}</Banner>}
 
-        {error && <div className="rounded bg-red-100 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {/* Customer */}
+        <fieldset className="space-y-3">
+          <legend className="mb-1 text-[12px] font-medium uppercase tracking-wider text-ink-faint">
+            Khách hàng
+          </legend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Ngày" required>
+              <Input
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+              />
+            </Field>
+            <Field label="Kênh bán">
+              <Input
+                value={form.channel}
+                onChange={(e) => setForm({ ...form, channel: e.target.value })}
+                placeholder="Chợ Tốt, Shopee, Facebook…"
+              />
+            </Field>
+          </div>
+          <Field label="Tên khách">
+            <Input
+              value={form.customerName}
+              onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+            />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="SĐT">
+              <Input
+                value={form.customerPhone}
+                onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+              />
+            </Field>
+            <Field
+              label="Cân nặng (g)"
+              hint={totalWeight > 0 ? `Tự động: ${totalWeight}g` : undefined}
+            >
+              <Input
+                type="number"
+                value={form.weightGrams}
+                onChange={(e) => setForm({ ...form, weightGrams: e.target.value })}
+                placeholder={totalWeight > 0 ? `${totalWeight}` : "auto từ sách"}
+              />
+            </Field>
+          </div>
+          <Field label="Địa chỉ">
+            <Input
+              value={form.customerAddress}
+              onChange={(e) => setForm({ ...form, customerAddress: e.target.value })}
+            />
+          </Field>
+          <Field label="Ghi chú">
+            <Textarea
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              placeholder="Ví dụ: đóng gói cẩn thận, giao giờ hành chính…"
+            />
+          </Field>
+        </fieldset>
 
-        <div className="grid gap-2 rounded-lg border bg-slate-50 p-3 sm:grid-cols-2">
-          <label className="text-sm">
-            Ngày *
-            <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            Kênh bán
-            <input value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })} placeholder="Chợ Tốt / Shopee / Facebook..." className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="text-sm sm:col-span-2">
-            Tên khách
-            <input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            SĐT
-            <input value={form.customerPhone} onChange={(e) => setForm({ ...form, customerPhone: e.target.value })} className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="text-sm sm:col-span-2">
-            Địa chỉ
-            <input value={form.customerAddress} onChange={(e) => setForm({ ...form, customerAddress: e.target.value })} className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="text-sm sm:col-span-2">
-            Ghi chú
-            <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-          </label>
-        </div>
-
-        <div>
+        {/* Order books */}
+        <fieldset>
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-medium">Sách trong đơn ({orderBooks.length})</h3>
+            <legend className="text-[12px] font-medium uppercase tracking-wider text-ink-faint">
+              Sách trong đơn · {orderBooks.length}
+            </legend>
             {orderBooks.length > 0 && (
-              <button onClick={() => { const ids = orderBooks.map((b) => b.id); setOrderBooks([]); setRemovedBookIds((prev) => Array.from(new Set([...prev, ...ids]))); }} className="text-xs text-red-600 hover:underline">Xóa hết</button>
+              <Button variant="ghost" size="sm" onClick={clearAll}>
+                Bỏ tất cả
+              </Button>
             )}
           </div>
           {orderBooks.length === 0 ? (
-            <div className="rounded border border-dashed bg-slate-50 p-4 text-center text-sm text-slate-400">
-              Chưa có sách — chọn từ kho bên dưới
+            <div className="rounded-md border border-dashed border-hairline-strong bg-surface-soft px-3 py-6 text-center text-[12.5px] text-ink-faint">
+              Chưa có sách — chọn từ kho bên dưới.
             </div>
           ) : (
-            <div className="max-h-32 space-y-1 overflow-auto rounded border bg-slate-50 p-2">
+            <ul className="max-h-40 space-y-1.5 overflow-auto rounded-md border border-hairline bg-surface-soft p-2">
               {orderBooks.map((b) => (
-                <div key={b.id} className="flex items-center gap-2 rounded bg-white p-2">
-                  {b.coverPhotoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={b.coverPhotoUrl} alt={b.title} className="h-8 w-6 rounded object-cover" />
-                  ) : (
-                    <div className="flex h-8 w-6 items-center justify-center rounded bg-slate-200 text-[8px] text-slate-400">No</div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{b.title}</p>
-                    <p className="text-xs text-slate-400">{b.isbn || "—"} · {b.listPriceVnd?.toLocaleString("vi-VN")}đ · {b.weightGrams ?? 0}g</p>
+                <li key={b.id} className="flex items-center gap-2 rounded-md bg-surface p-2">
+                  <div className="flex h-8 w-6 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-hairline bg-surface-soft">
+                    {b.coverPhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={b.coverPhotoUrl} alt={b.title} className="h-full w-full object-cover" />
+                    ) : (
+                      <Book size={12} weight="duotone" className="text-ink-faint" />
+                    )}
                   </div>
-                  <button onClick={() => removeOrderBook(b.id)} className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">Bỏ</button>
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium text-ink">{b.title}</p>
+                    <p className="font-tabular text-[10.5px] text-ink-faint">
+                      {b.isbn ?? "—"} · {b.listPriceVnd?.toLocaleString("vi-VN")}đ · {b.weightGrams ?? 0}g
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => removeOrderBook(b.id)}>
+                    Bỏ
+                  </Button>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
-        </div>
+        </fieldset>
 
-        <div className="rounded-lg border bg-slate-50 p-3">
-          <p className="mb-2 text-sm font-medium">Thêm sách từ kho:</p>
-          <input
-            value={bookSearch}
-            onChange={(e) => setBookSearch(e.target.value)}
-            placeholder="Tìm tên / ISBN..."
-            className="mb-2 w-full rounded border border-slate-300 px-3 py-1.5 text-sm"
-          />
-          <div className="max-h-40 space-y-1 overflow-auto rounded border bg-white p-2">
+        {/* Pick from inventory */}
+        <fieldset>
+          <legend className="mb-2 block text-[12px] font-medium uppercase tracking-wider text-ink-faint">
+            Thêm sách từ kho
+          </legend>
+          <div className="relative mb-2">
+            <MagnifyingGlass
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint"
+            />
+            <Input
+              value={bookSearch}
+              onChange={(e) => setBookSearch(e.target.value)}
+              placeholder="Tìm theo tên hoặc ISBN…"
+              className="pl-8"
+            />
+          </div>
+          <div className="max-h-44 overflow-auto rounded-md border border-hairline bg-surface p-1">
             {filteredAvailable.length === 0 ? (
-              <p className="text-center text-xs text-slate-400 py-2">Không có sách khả dụng</p>
+              <p className="px-3 py-6 text-center text-[12.5px] text-ink-faint">
+                {bookSearch ? "Không tìm thấy sách khả dụng" : "Hết sách khả dụng trong kho"}
+              </p>
             ) : (
-              filteredAvailable.map((b) => (
-                <div key={b.id} className="flex items-center gap-2 rounded p-1.5 hover:bg-slate-50">
-                  {b.coverPhotoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={b.coverPhotoUrl} alt={b.title} className="h-8 w-6 rounded object-cover" />
-                  ) : (
-                    <div className="flex h-8 w-6 items-center justify-center rounded bg-slate-200 text-[8px] text-slate-400">No</div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium">{b.title}</p>
-                    <p className="text-[10px] text-slate-400">{b.isbn || "—"} · {b.listPriceVnd?.toLocaleString("vi-VN")}đ</p>
-                  </div>
-                  <button onClick={() => addBook(b)} className="rounded bg-blue-600 px-2 py-1 text-xs text-white">+ Thêm</button>
-                </div>
-              ))
+              <ul className="space-y-0.5">
+                {filteredAvailable.map((b) => (
+                  <li
+                    key={b.id}
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-soft"
+                  >
+                    <div className="flex h-8 w-6 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-hairline bg-surface-soft">
+                      {b.coverPhotoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={b.coverPhotoUrl} alt={b.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <Book size={12} weight="duotone" className="text-ink-faint" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12.5px] font-medium text-ink">{b.title}</p>
+                      <p className="truncate font-mono text-[10px] text-ink-faint">
+                        {b.isbn ?? "—"} · {b.listPriceVnd?.toLocaleString("vi-VN")}đ
+                      </p>
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => addBook(b)}
+                      iconLeft={<Plus size={12} weight="bold" />}
+                    >
+                      Thêm
+                    </Button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
-        </div>
+        </fieldset>
 
-        <div className="grid gap-2 rounded-lg border bg-slate-50 p-3 sm:grid-cols-3">
-          <label className="text-sm">
-            Cân nặng (g)
-            <input type="number" value={form.weightGrams} onChange={(e) => setForm({ ...form, weightGrams: e.target.value })} placeholder={totalWeight ? String(totalWeight) : "auto từ sách"} className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-            {totalWeight > 0 && <p className="mt-1 text-xs text-slate-500">Auto: {totalWeight}g</p>}
-          </label>
-          <label className="text-sm">
-            Phí ship (đ)
-            <input type="number" value={form.shippingFee} onChange={(e) => setForm({ ...form, shippingFee: e.target.value })} className="mt-1 w-full rounded border border-slate-300 px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            Đơn vị ship
-            <select value={form.shippingUnit} onChange={(e) => setForm({ ...form, shippingUnit: e.target.value })} className="mt-1 w-full rounded border border-slate-300 px-3 py-2">
-              {SHIPPING_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-            </select>
-          </label>
-        </div>
+        {/* Shipping */}
+        <fieldset className="grid gap-3 sm:grid-cols-2">
+          <legend className="sm:col-span-2 -mb-2 text-[12px] font-medium uppercase tracking-wider text-ink-faint">
+            Vận chuyển
+          </legend>
+          <Field label="Phí ship (đ)">
+            <Input
+              type="number"
+              value={form.shippingFee}
+              onChange={(e) => setForm({ ...form, shippingFee: e.target.value })}
+              placeholder="0"
+            />
+          </Field>
+          <Field label="Đơn vị vận chuyển">
+            <Select
+              value={form.shippingUnit}
+              onChange={(e) => setForm({ ...form, shippingUnit: e.target.value })}
+            >
+              {SHIPPING_UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </fieldset>
 
-        <div className="grid grid-cols-3 gap-2 rounded-lg border-2 border-slate-200 bg-slate-50 p-3 text-center">
-          <div>
-            <p className="text-xs text-slate-500">Sách</p>
-            <p className="text-xl font-bold">{orderBooks.length}</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">Tiền sách</p>
-            <p className="text-xl font-bold">{subtotal > 0 ? `${subtotal.toLocaleString("vi-VN")}đ` : "—"}</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">Tổng cộng</p>
-            <p className="text-xl font-bold text-blue-600">{grandTotal > 0 ? `${grandTotal.toLocaleString("vi-VN")}đ` : "—"}</p>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 border-t pt-3">
-          <button onClick={resetAndClose} className="rounded bg-slate-200 px-4 py-2">Hủy</button>
-          <button onClick={handleSave} disabled={saving || orderBooks.length === 0} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">
-            {saving ? "Đang lưu..." : `${isEdit ? "Cập nhật" : "Lưu"} đơn (${orderBooks.length} sách)`}
-          </button>
+        {/* Summary */}
+        <div className="grid grid-cols-3 divide-x divide-hairline rounded-lg border border-hairline bg-surface-soft">
+          <SummaryCell label="Sách" value={String(orderBooks.length)} />
+          <SummaryCell
+            label="Tiền sách"
+            value={subtotal > 0 ? `${subtotal.toLocaleString("vi-VN")}đ` : "—"}
+          />
+          <SummaryCell
+            label="Tổng cộng"
+            value={grandTotal > 0 ? `${grandTotal.toLocaleString("vi-VN")}đ` : "—"}
+            accent="brand"
+          />
         </div>
       </div>
+    </Modal>
+  );
+}
+
+function SummaryCell({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: "brand" | "neutral";
+}) {
+  return (
+    <div className="px-4 py-3 text-center">
+      <p className="text-[10.5px] font-medium uppercase tracking-wider text-ink-faint">{label}</p>
+      <p
+        className={[
+          "font-tabular text-[18px] font-semibold leading-tight",
+          accent === "brand" ? "text-brand" : "text-ink",
+        ].join(" ")}
+      >
+        {value}
+      </p>
     </div>
   );
 }
