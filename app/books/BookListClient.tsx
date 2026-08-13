@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MagnifyingGlass,
   CurrencyDollar,
@@ -81,6 +81,10 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
   const [viewingOrder, setViewingOrder] = useState<OrderRow | null>(null);
   const [notice, setNotice] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   async function fetchBooks(searchQ: string, searchStatus: string) {
     setLoading(true);
@@ -171,19 +175,28 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
 
   async function openOrderForBook(book: BookRow) {
     if (!book.soldOrderId) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoadingOrderId(book.id);
     setError("");
     setNotice("");
     try {
-      const res = await fetch(`/api/orders/${book.soldOrderId}`);
+      const res = await fetch(`/api/orders/${book.soldOrderId}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error ?? "Không tải được đơn hàng");
         return;
       }
       const order = (await res.json()) as OrderRow;
+      if (controller.signal.aborted) return;
       setViewingOrder(order);
-    } catch {
+    } catch (e) {
+      if (controller.signal.aborted) return;
       setError("Không thể kết nối tới máy chủ");
+    } finally {
+      if (!controller.signal.aborted) setLoadingOrderId(null);
     }
   }
 
@@ -396,6 +409,7 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
               onEdit={() => setEditing(book)}
               onOpenOrder={() => openOrderForBook(book)}
               onDelete={() => remove(book)}
+              loading={loadingOrderId === book.id}
             />
           ))}
         </div>
@@ -416,7 +430,10 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
         isOpen={!!viewingOrder}
         initialOrder={viewingOrder ?? undefined}
         onClose={() => setViewingOrder(null)}
-        onSaved={() => setViewingOrder(null)}
+        onSaved={() => {
+          setViewingOrder(null);
+          fetchBooks(q, status);
+        }}
       />
     </div>
   );
@@ -427,11 +444,13 @@ function BookCard({
   onEdit,
   onOpenOrder,
   onDelete,
+  loading,
 }: {
   book: BookRow;
   onEdit: () => void;
   onOpenOrder: () => void;
   onDelete: () => void;
+  loading?: boolean;
 }) {
   const cfg = STATUS_LABEL[book.status];
   const profit = (book.listPriceVnd ?? 0) - (book.purchaseCostVnd ?? 0);
@@ -504,6 +523,7 @@ function BookCard({
               size="sm"
               onClick={onOpenOrder}
               iconLeft={<Receipt size={12} weight="bold" />}
+              loading={loading}
             >
               Xem đơn #{book.soldOrderId.slice(0, 6)}
             </Button>

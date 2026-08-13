@@ -8,10 +8,6 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/date", () => ({
-  parseDateOnly: (s: string) => new Date(s),
-}));
-
 import { prisma } from "@/lib/prisma";
 
 const mockedUpdate = vi.mocked(prisma.book.update);
