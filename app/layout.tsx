@@ -16,8 +16,8 @@ const jbMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sách Cũ — Quản lý bán sách",
-  description: "Quản lý kho, đơn hàng và chi phí cho tiệm sách cũ",
+  title: "BookBase — Quản lý bán sách",
+  description: "Quản lý kho, đơn hàng và chi phí cho tiệm BookBase",
 };
 
 export default function RootLayout({
