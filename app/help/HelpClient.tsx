@@ -18,7 +18,12 @@ let lastRaw: string | null = null;
 let lastSnapshot: Progress = EMPTY_PROGRESS;
 
 function getSnapshot(): Progress {
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  let raw: string | null;
+  try {
+    raw = window.localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return EMPTY_PROGRESS;
+  }
   if (raw === lastRaw) return lastSnapshot;
   lastRaw = raw;
   if (raw === null) {
@@ -78,6 +83,23 @@ export default function HelpClient() {
     sections.forEach((s) => s && observer.observe(s));
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    const el = document.getElementById(hash);
+    if (!el) return;
+    el.scrollIntoView({ block: "start" });
+  }, []);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setDrawerOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerOpen]);
 
   function scrollToWorkflow(id: string, closeDrawer = false) {
     const el = document.getElementById(id);
@@ -296,9 +318,7 @@ export default function HelpClient() {
           </div>
         }
       >
-        <p className="text-[14px] text-ink-muted">
-          Hành động này sẽ xoá toàn bộ tiến độ đã tick trong tất cả 8 workflow.
-        </p>
+        {null}
       </Modal>
 
       {/* Mobile drawer */}
