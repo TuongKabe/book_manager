@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import NavWrapper from "@/app/components/NavWrapper";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   subsets: ["latin", "vietnamese"],
@@ -27,6 +28,7 @@ export default function RootLayout({
     <html lang="vi" className={`${inter.variable} ${jbMono.variable}`}>
       <body>
         <NavWrapper>{children}</NavWrapper>
+        <Analytics />
       </body>
     </html>
   );
