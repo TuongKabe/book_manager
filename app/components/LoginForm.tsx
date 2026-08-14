@@ -45,7 +45,7 @@ export default function LoginForm() {
           </span>
           <div>
             <p className="font-tabular text-[15px] font-semibold tracking-tight text-ink">
-              Sách Cũ
+              BookBase
             </p>
             <p className="text-[12px] text-ink-faint">Quản lý bán sách</p>
           </div>

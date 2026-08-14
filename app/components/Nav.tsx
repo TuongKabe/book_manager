@@ -55,7 +55,7 @@ export default function Nav() {
             <Books size={16} weight="fill" />
           </span>
           <span className="text-[15px] font-semibold tracking-tight text-ink">
-            Sách Cũ
+            BookBase
           </span>
         </Link>
 
