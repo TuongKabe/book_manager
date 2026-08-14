@@ -10,6 +10,7 @@ import {
   ShoppingBag,
   Receipt,
   SignOut,
+  Question,
 } from "@phosphor-icons/react";
 import type { ComponentType } from "react";
 import type { IconProps } from "@phosphor-icons/react";
@@ -23,6 +24,7 @@ const items: { href: string; label: string; icon: IconCmp }[] = [
   { href: "/purchases", label: "Nhập hàng", icon: Archive },
   { href: "/orders", label: "Bán hàng", icon: ShoppingBag },
   { href: "/expenses", label: "Chi phí", icon: Receipt },
+  { href: "/help", label: "Hướng dẫn", icon: Question },
 ];
 
 function isActive(pathname: string, href: string): boolean {

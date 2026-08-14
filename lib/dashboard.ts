@@ -99,15 +99,15 @@ export async function getDashboardData(from: Date, to: Date): Promise<DashboardD
       COALESCE(SUM(oc), 0)::int AS order_count,
       COALESCE(SUM(bs), 0)::int AS book_sold
     FROM (
-      SELECT date, "totalVnd" AS rev, 0 AS cst, 1 AS oc, 0 AS bs
+      SELECT "date"::timestamp AS d, "totalVnd" AS rev, 0 AS cst, 1 AS oc, 0 AS bs
       FROM "Order"
-      WHERE date BETWEEN ${from} AND ${to}
+      WHERE "date" BETWEEN ${from} AND ${to}
       UNION ALL
-      SELECT date, 0 AS rev, "amountVnd" AS cst, 0 AS oc, 0 AS bs
+      SELECT "date"::timestamp AS d, 0 AS rev, "amountVnd" AS cst, 0 AS oc, 0 AS bs
       FROM "Expense"
-      WHERE date BETWEEN ${from} AND ${to}
+      WHERE "date" BETWEEN ${from} AND ${to}
       UNION ALL
-      SELECT "soldDate" AS date, 0 AS rev, COALESCE("purchaseCostVnd", 0) AS cst, 0 AS oc, 1 AS bs
+      SELECT "soldDate"::timestamp AS d, 0 AS rev, COALESCE("purchaseCostVnd", 0) AS cst, 0 AS oc, 1 AS bs
       FROM "Book"
       WHERE "soldDate" BETWEEN ${from} AND ${to}
     ) d
