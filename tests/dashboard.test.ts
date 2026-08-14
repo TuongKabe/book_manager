@@ -93,13 +93,13 @@ describe("getDashboardData", () => {
     });
   });
 
-  it("uses $queryRaw with date_trunc + 3 UNION ALL for monthly", async () => {
+  it("uses $queryRaw with date_trunc + UNION ALL for monthly", async () => {
     await getDashboardData(from, to);
     expect(mockQueryRaw).toHaveBeenCalledTimes(1);
     const sqlArg = mockQueryRaw.mock.calls[0][0] as TemplateStringsArray;
     const fullSql = sqlArg.join("?");
     expect(fullSql).toMatch(/date_trunc\('month',/);
-    expect(fullSql.match(/UNION ALL/g)?.length).toBe(3);
+    expect(fullSql.match(/UNION ALL/g)?.length).toBe(2);
     expect(fullSql).toMatch(/FROM "Order"/);
     expect(fullSql).toMatch(/FROM "Expense"/);
     expect(fullSql).toMatch(/FROM "Book"/);
