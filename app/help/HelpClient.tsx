@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowRight, List, X } from "@phosphor-icons/react";
 import Modal from "@/app/components/ui/Modal";
@@ -11,20 +11,44 @@ type Progress = {
 };
 
 const STORAGE_KEY = "bookbase:help:progress";
+const PROGRESS_CHANGE_EVENT = "bookbase:help:progress-change";
+const EMPTY_PROGRESS: Progress = {};
 
-function loadProgress(): Progress {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Progress) : {};
-  } catch {
-    return {};
+let lastRaw: string | null = null;
+let lastSnapshot: Progress = EMPTY_PROGRESS;
+
+function getSnapshot(): Progress {
+  const raw = window.localStorage.getItem(STORAGE_KEY);
+  if (raw === lastRaw) return lastSnapshot;
+  lastRaw = raw;
+  if (raw === null) {
+    lastSnapshot = EMPTY_PROGRESS;
+  } else {
+    try {
+      lastSnapshot = JSON.parse(raw) as Progress;
+    } catch {
+      lastSnapshot = EMPTY_PROGRESS;
+    }
   }
+  return lastSnapshot;
 }
 
-function saveProgress(p: Progress) {
-  if (typeof window === "undefined") return;
+function getServerSnapshot(): Progress {
+  return EMPTY_PROGRESS;
+}
+
+function subscribe(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(PROGRESS_CHANGE_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(PROGRESS_CHANGE_EVENT, callback);
+  };
+}
+
+function writeProgress(p: Progress) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+  window.dispatchEvent(new Event(PROGRESS_CHANGE_EVENT));
 }
 
 function getDoneCount(w: Workflow, progress: Progress): number {
@@ -34,13 +58,9 @@ function getDoneCount(w: Workflow, progress: Progress): number {
 
 export default function HelpClient() {
   const [activeId, setActiveId] = useState<string>(WORKFLOWS[0].id);
-  const [progress, setProgress] = useState<Progress>({});
+  const progress = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [confirmReset, setConfirmReset] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  useEffect(() => {
-    setProgress(loadProgress());
-  }, []);
 
   useEffect(() => {
     const sections = WORKFLOWS.map((w) => document.getElementById(w.id));
@@ -71,18 +91,14 @@ export default function HelpClient() {
   }
 
   function toggleStep(workflowId: string, stepIndex: number) {
-    setProgress((prev) => {
-      const wf = { ...(prev[workflowId] ?? {}) };
-      wf[stepIndex] = !wf[stepIndex];
-      const next = { ...prev, [workflowId]: wf };
-      saveProgress(next);
-      return next;
-    });
+    const current = getSnapshot();
+    const wf = { ...(current[workflowId] ?? {}) };
+    wf[stepIndex] = !wf[stepIndex];
+    writeProgress({ ...current, [workflowId]: wf });
   }
 
   function handleReset() {
-    setProgress({});
-    saveProgress({});
+    writeProgress({});
     setConfirmReset(false);
   }
 
