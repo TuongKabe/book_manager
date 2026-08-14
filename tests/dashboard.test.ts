@@ -103,6 +103,7 @@ describe("getDashboardData", () => {
     expect(fullSql).toMatch(/FROM "Order"/);
     expect(fullSql).toMatch(/FROM "Expense"/);
     expect(fullSql).toMatch(/FROM "Book"/);
+    expect(fullSql).toMatch(/"date"/);
   });
 
   it("topBooks uses findMany with soldOrderId not null + select", async () => {
