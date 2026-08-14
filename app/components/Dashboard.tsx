@@ -11,6 +11,7 @@ import {
   Books,
   Cube,
   ArrowUpRight,
+  ArrowClockwise,
   CaretDown,
   CaretRight,
   CalendarBlank,
@@ -174,11 +175,11 @@ const monthLabel = (m: string) => {
   return `T${parseInt(mm, 10)}/${y.slice(2)}`;
 };
 
-export default function Dashboard() {
+export default function Dashboard({ initialData }: { initialData: DashboardData }) {
   const [period, setPeriod] = useState<Period>("today");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<DashboardData>(initialData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -189,6 +190,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (period === "custom" && (!customFrom || !customTo)) return;
+    if (
+      data?.from === initialData.from &&
+      data?.to === initialData.to &&
+      period === "today" &&
+      !customFrom &&
+      !customTo
+    ) {
+      return;
+    }
     queueMicrotask(() => {
       setLoading(true);
       setError("");
@@ -217,14 +227,36 @@ export default function Dashboard() {
         description="Theo dõi doanh thu, chi phí và tồn kho."
         period={label ? <PeriodPill icon={<CalendarBlank size={12} weight="bold" />}>{label}</PeriodPill> : null}
         toolbar={
-          <PeriodToolbar
-            period={period}
-            setPeriod={setPeriod}
-            customFrom={customFrom}
-            customTo={customTo}
-            setCustomFrom={setCustomFrom}
-            setCustomTo={setCustomTo}
-          />
+          <div className="flex items-center gap-2">
+            <PeriodToolbar
+              period={period}
+              setPeriod={setPeriod}
+              customFrom={customFrom}
+              customTo={customTo}
+              setCustomFrom={setCustomFrom}
+              setCustomTo={setCustomTo}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setLoading(true);
+                setError("");
+                fetch(`/api/dashboard?from=${from.toISOString()}&to=${to.toISOString()}`)
+                  .then((r) => r.json())
+                  .then((d) => {
+                    if (d.error) setError(d.error);
+                    else setData(d);
+                  })
+                  .catch(() => setError("Không thể tải dữ liệu từ máy chủ"))
+                  .finally(() => setLoading(false));
+              }}
+              loading={loading}
+              iconLeft={<ArrowClockwise size={14} weight="bold" />}
+            >
+              Làm mới
+            </Button>
+          </div>
         }
       />
 
