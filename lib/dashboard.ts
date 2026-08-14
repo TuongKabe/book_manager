@@ -42,78 +42,88 @@ export type DashboardData = {
 };
 
 export async function getDashboardData(from: Date, to: Date): Promise<DashboardData> {
-  const [orderAgg, bookSoldAgg, expenseAgg, inStockCount, expenseByCategory, topBooksRaw, recentOrders, recentExpenses] =
-    await Promise.all([
-      prisma.order.aggregate({
-        where: { date: { gte: from, lte: to } },
-        _sum: { totalVnd: true },
-        _count: true,
-      }),
-      prisma.book.aggregate({
-        where: { soldDate: { gte: from, lte: to } },
-        _sum: { purchaseCostVnd: true },
-        _count: true,
-      }),
-      prisma.expense.aggregate({
-        where: { date: { gte: from, lte: to } },
-        _sum: { amountVnd: true },
-      }),
-      prisma.book.count({ where: { status: { in: ["LISTED", "INTAKE"] } } }),
-      prisma.expense.groupBy({
-        by: ["category"],
-        where: { date: { gte: from, lte: to } },
-        _sum: { amountVnd: true },
-        orderBy: { _sum: { amountVnd: "desc" } },
-      }),
-      prisma.book.findMany({
-        where: { soldDate: { gte: from, lte: to }, soldOrderId: { not: null } },
-        select: { id: true, title: true, soldPriceVnd: true },
-      }),
-      prisma.order.findMany({
-        where: { date: { gte: from, lte: to } },
-        orderBy: { date: "desc" },
-        take: 10,
-        select: { id: true, date: true, customerName: true, channel: true, totalVnd: true },
-      }),
-      prisma.expense.findMany({
-        where: { date: { gte: from, lte: to } },
-        orderBy: { date: "desc" },
-        take: 10,
-        select: { id: true, date: true, category: true, amountVnd: true, note: true },
-      }),
-    ]);
-
-  const monthlyRows = await prisma.$queryRaw<
-    Array<{
-      month: Date;
-      revenue: number | null;
-      cost: number | null;
-      order_count: number | null;
-      book_sold: number | null;
-    }>
-  >`
-    SELECT
-      date_trunc('month', d)::date AS month,
-      COALESCE(SUM(rev), 0)::int AS revenue,
-      COALESCE(SUM(cst), 0)::int AS cost,
-      COALESCE(SUM(oc), 0)::int AS order_count,
-      COALESCE(SUM(bs), 0)::int AS book_sold
-    FROM (
-      SELECT "date"::timestamp AS d, "totalVnd" AS rev, 0 AS cst, 1 AS oc, 0 AS bs
-      FROM "Order"
-      WHERE "date" BETWEEN ${from} AND ${to}
-      UNION ALL
-      SELECT "date"::timestamp AS d, 0 AS rev, "amountVnd" AS cst, 0 AS oc, 0 AS bs
-      FROM "Expense"
-      WHERE "date" BETWEEN ${from} AND ${to}
-      UNION ALL
-      SELECT "soldDate"::timestamp AS d, 0 AS rev, COALESCE("purchaseCostVnd", 0) AS cst, 0 AS oc, 1 AS bs
-      FROM "Book"
-      WHERE "soldDate" BETWEEN ${from} AND ${to}
-    ) d
-    GROUP BY date_trunc('month', d)
-    ORDER BY month
-  `;
+  const [
+    orderAgg,
+    bookSoldAgg,
+    expenseAgg,
+    inStockCount,
+    expenseByCategory,
+    topBooksRaw,
+    recentOrders,
+    recentExpenses,
+    monthlyRows,
+  ] = await Promise.all([
+    prisma.order.aggregate({
+      where: { date: { gte: from, lte: to } },
+      _sum: { totalVnd: true },
+      _count: true,
+    }),
+    prisma.book.aggregate({
+      where: { soldDate: { gte: from, lte: to } },
+      _sum: { purchaseCostVnd: true },
+      _count: true,
+    }),
+    prisma.expense.aggregate({
+      where: { date: { gte: from, lte: to } },
+      _sum: { amountVnd: true },
+    }),
+    prisma.book.count({ where: { status: { in: ["LISTED", "INTAKE"] } } }),
+    prisma.expense.groupBy({
+      by: ["category"],
+      where: { date: { gte: from, lte: to } },
+      _sum: { amountVnd: true },
+      orderBy: { _sum: { amountVnd: "desc" } },
+    }),
+    prisma.book.findMany({
+      where: { soldDate: { gte: from, lte: to }, soldOrderId: { not: null } },
+      select: { id: true, title: true, soldPriceVnd: true },
+      orderBy: { soldPriceVnd: { sort: "desc", nulls: "last" } },
+      take: 10,
+    }),
+    prisma.order.findMany({
+      where: { date: { gte: from, lte: to } },
+      orderBy: { date: "desc" },
+      take: 10,
+      select: { id: true, date: true, customerName: true, channel: true, totalVnd: true },
+    }),
+    prisma.expense.findMany({
+      where: { date: { gte: from, lte: to } },
+      orderBy: { date: "desc" },
+      take: 10,
+      select: { id: true, date: true, category: true, amountVnd: true, note: true },
+    }),
+    prisma.$queryRaw<
+      Array<{
+        month: Date;
+        revenue: number | null;
+        cost: number | null;
+        order_count: number | null;
+        book_sold: number | null;
+      }>
+    >`
+      SELECT
+        date_trunc('month', d)::date AS month,
+        COALESCE(SUM(rev), 0)::int AS revenue,
+        COALESCE(SUM(cst), 0)::int AS cost,
+        COALESCE(SUM(oc), 0)::int AS order_count,
+        COALESCE(SUM(bs), 0)::int AS book_sold
+      FROM (
+        SELECT "date"::timestamp AS d, "totalVnd" AS rev, 0 AS cst, 1 AS oc, 0 AS bs
+        FROM "Order"
+        WHERE "date" BETWEEN ${from} AND ${to}
+        UNION ALL
+        SELECT "date"::timestamp AS d, 0 AS rev, "amountVnd" AS cst, 0 AS oc, 0 AS bs
+        FROM "Expense"
+        WHERE "date" BETWEEN ${from} AND ${to}
+        UNION ALL
+        SELECT "soldDate"::timestamp AS d, 0 AS rev, COALESCE("purchaseCostVnd", 0) AS cst, 0 AS oc, 1 AS bs
+        FROM "Book"
+        WHERE "soldDate" BETWEEN ${from} AND ${to}
+      ) d
+      GROUP BY date_trunc('month', d)
+      ORDER BY month
+    `,
+  ]);
 
   const revenue = orderAgg._sum.totalVnd ?? 0;
   const bookCost = bookSoldAgg._sum.purchaseCostVnd ?? 0;
@@ -134,14 +144,12 @@ export async function getDashboardData(from: Date, to: Date): Promise<DashboardD
     bookSold: r.book_sold ?? 0,
   }));
 
-  const bookMap = new Map<string, { id: string; title: string; count: number; revenue: number }>();
-  for (const b of topBooksRaw) {
-    const ex = bookMap.get(b.id) ?? { id: b.id, title: b.title, count: 0, revenue: 0 };
-    ex.count += 1;
-    ex.revenue += b.soldPriceVnd ?? 0;
-    bookMap.set(b.id, ex);
-  }
-  const topBooks = [...bookMap.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+  const topBooks = topBooksRaw.map((b) => ({
+    id: b.id,
+    title: b.title,
+    count: 1,
+    revenue: b.soldPriceVnd ?? 0,
+  }));
 
   const topExpenses = expenseByCategory.map((r) => ({
     category: r.category,

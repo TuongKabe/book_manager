@@ -44,6 +44,10 @@ model Book {
   notes           String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([soldDate])
+  @@index([status])
+  @@index([soldOrderId])
 }
 
 model Order {
@@ -61,6 +65,8 @@ model Order {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   books           Book[]   @relation("SoldBooks")
+
+  @@index([date])
 }
 
 model Expense {
@@ -71,4 +77,7 @@ model Expense {
   note      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([category])
 }

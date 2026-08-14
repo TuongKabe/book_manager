@@ -58,7 +58,6 @@ describe("getDashboardData", () => {
     ] as never);
     mockBookFindMany.mockResolvedValue([
       { id: "b1", title: "Sách A", soldPriceVnd: 50000 },
-      { id: "b1", title: "Sách A", soldPriceVnd: 50000 },
       { id: "b2", title: "Sách B", soldPriceVnd: 30000 },
     ] as never);
     mockOrderFindMany.mockResolvedValue([
@@ -108,11 +107,13 @@ describe("getDashboardData", () => {
     expect(fullSql).toMatch(/::timestamp/);
   });
 
-  it("topBooks uses findMany with soldOrderId not null + select", async () => {
+  it("topBooks uses findMany with soldOrderId not null + select, sorted desc, top 10", async () => {
     await getDashboardData(from, to);
     expect(mockBookFindMany).toHaveBeenCalledWith({
       where: { soldDate: { gte: from, lte: to }, soldOrderId: { not: null } },
       select: { id: true, title: true, soldPriceVnd: true },
+      orderBy: { soldPriceVnd: { sort: "desc", nulls: "last" } },
+      take: 10,
     });
   });
 
@@ -162,10 +163,10 @@ describe("getDashboardData", () => {
     });
   });
 
-  it("groups topBooks by id and sorts by revenue desc", async () => {
+  it("maps topBooks from findMany result (already sorted by revenue desc via DB)", async () => {
     const result = await getDashboardData(from, to);
     expect(result.topBooks).toEqual([
-      { id: "b1", title: "Sách A", count: 2, revenue: 100000 },
+      { id: "b1", title: "Sách A", count: 1, revenue: 50000 },
       { id: "b2", title: "Sách B", count: 1, revenue: 30000 },
     ]);
   });
