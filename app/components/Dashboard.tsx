@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   CurrencyDollar,
@@ -24,6 +24,7 @@ import Pill from "@/app/components/ui/Pill";
 import Banner from "@/app/components/ui/Banner";
 import Button from "@/app/components/ui/Button";
 import { StatSkeletonGrid, PanelSkeleton } from "@/app/components/ui/Skeleton";
+import type { DashboardData } from "@/lib/dashboard";
 
 type Period =
   | "today"
@@ -45,56 +46,6 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: "lastYear", label: "Năm trước" },
   { value: "custom", label: "Tùy chỉnh…" },
 ];
-
-type Stats = {
-  revenue: number;
-  cost: number;
-  profit: number;
-  profitMargin: number;
-  orderCount: number;
-  bookSoldCount: number;
-  avgOrderValue: number;
-  expenseTotal: number;
-  bookCost: number;
-  inStockCount: number;
-};
-
-type Monthly = {
-  month: string;
-  revenue: number;
-  cost: number;
-  profit: number;
-  orderCount: number;
-  bookSold: number;
-};
-
-type TopBook = { id: string; title: string; count: number; revenue: number };
-type TopExpense = { category: string; total: number };
-type RecentOrder = {
-  id: string;
-  date: string | Date;
-  customer: string | null;
-  channel: string | null;
-  total: number | null;
-};
-type RecentExpense = {
-  id: string;
-  date: string | Date;
-  category: string;
-  amount: number;
-  note: string | null;
-};
-
-type DashboardData = {
-  from: string;
-  to: string;
-  stats: Stats;
-  monthly: Monthly[];
-  topBooks: TopBook[];
-  topExpenses: TopExpense[];
-  recentOrders: RecentOrder[];
-  recentExpenses: RecentExpense[];
-};
 
 function getPeriodDates(
   period: Period,
@@ -188,6 +139,21 @@ export default function Dashboard({ initialData }: { initialData: DashboardData 
     [period, customFrom, customTo],
   );
 
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/dashboard?from=${from.toISOString()}&to=${to.toISOString()}`);
+      const d = await res.json();
+      if (d.error) setError(d.error);
+      else setData(d);
+    } catch {
+      setError("Không thể tải dữ liệu từ máy chủ");
+    } finally {
+      setLoading(false);
+    }
+  }, [from, to]);
+
   useEffect(() => {
     if (period === "custom" && (!customFrom || !customTo)) return;
     if (
@@ -200,18 +166,9 @@ export default function Dashboard({ initialData }: { initialData: DashboardData 
       return;
     }
     queueMicrotask(() => {
-      setLoading(true);
-      setError("");
+      loadData();
     });
-    fetch(`/api/dashboard?from=${from.toISOString()}&to=${to.toISOString()}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) setError(d.error);
-        else setData(d);
-      })
-      .catch(() => setError("Không thể tải dữ liệu từ máy chủ"))
-      .finally(() => setLoading(false));
-  }, [from, to, period, customFrom, customTo]);
+  }, [from, to, period, customFrom, customTo, loadData]);
 
   const maxRevenue = data ? Math.max(...data.monthly.map((m) => m.revenue), 1) : 1;
   const maxExpense = data ? Math.max(...data.topExpenses.map((e) => e.total), 1) : 1;
@@ -239,18 +196,7 @@ export default function Dashboard({ initialData }: { initialData: DashboardData 
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                setLoading(true);
-                setError("");
-                fetch(`/api/dashboard?from=${from.toISOString()}&to=${to.toISOString()}`)
-                  .then((r) => r.json())
-                  .then((d) => {
-                    if (d.error) setError(d.error);
-                    else setData(d);
-                  })
-                  .catch(() => setError("Không thể tải dữ liệu từ máy chủ"))
-                  .finally(() => setLoading(false));
-              }}
+              onClick={loadData}
               loading={loading}
               iconLeft={<ArrowClockwise size={14} weight="bold" />}
             >
