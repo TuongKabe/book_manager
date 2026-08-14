@@ -25,7 +25,7 @@ Hai task độc lập, thực hiện theo thứ tự:
 
 | # | Hạng mục | Quyết định |
 |---|----------|-----------|
-| B1 | File sửa | `app/layout.tsx` |
+| B1 | Files sửa | `app/layout.tsx`, `app/components/LoginForm.tsx`, `app/components/Nav.tsx` |
 | B2 | `metadata.title` | `"Sách Cũ — Quản lý bán sách"` → `"BookBase — Quản lý bán sách"` |
 | B3 | `metadata.description` | `"Quản lý kho, đơn hàng và chi phí cho tiệm sách cũ"` → `"Quản lý kho, đơn hàng và chi phí cho tiệm BookBase"` |
 | B4 | Không đụng | Nav, page titles, favicon, internal labels |
@@ -50,9 +50,11 @@ Lưu ý:
 - Dùng `PrismaClient` instance riêng (không import `@/lib/prisma` vì alias path chỉ work trong Next runtime).
 - Cuối cùng gọi `$disconnect()` để script exit cleanly.
 
-### Task B — `app/layout.tsx`
+### Task B — `app/layout.tsx`, `app/components/LoginForm.tsx`, `app/components/Nav.tsx`
 
-Sửa 2 dòng metadata (dòng 19–20):
+Sửa 3 file:
+
+1. `app/layout.tsx` — metadata title/description (dòng 19–20):
 
 ```ts
 export const metadata: Metadata = {
@@ -60,6 +62,9 @@ export const metadata: Metadata = {
   description: "Quản lý kho, đơn hàng và chi phí cho tiệm BookBase",
 };
 ```
+
+2. `app/components/LoginForm.tsx:48` — brand panel heading: `Sách Cũ` → `BookBase`.
+3. `app/components/Nav.tsx:58` — header brand link: `Sách Cũ` → `BookBase`.
 
 ## Data flow
 
@@ -102,11 +107,13 @@ $ node scripts/clear-expenses.mjs
 
 - `scripts/clear-expenses.mjs` (mới)
 - `app/layout.tsx` (sửa 2 dòng metadata)
+- `app/components/LoginForm.tsx` (sửa brand panel, dòng 48)
+- `app/components/Nav.tsx` (sửa header brand link, dòng 58)
 
 ## Out of scope
 
 - Không xóa file `scripts/clear-expenses.mjs` sau khi chạy (giữ lại để tham khảo / tái sử dụng nếu cần).
 - Không thêm README / docs về script (per "không thêm npm script" — không có workflow chính thức).
-- Không đổi Nav, page titles, favicon.
+- Không đổi page titles (các `<h1>` trong từng page), favicon, internal labels.
 - Không có schema migration.
 - Không có rollback plan cho clear-expenses (xóa là xóa).
