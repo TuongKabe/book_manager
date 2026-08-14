@@ -28,7 +28,7 @@ Hai task độc lập, thực hiện theo thứ tự:
 | B1 | Files sửa | `app/layout.tsx`, `app/components/LoginForm.tsx`, `app/components/Nav.tsx` |
 | B2 | `metadata.title` | `"Sách Cũ — Quản lý bán sách"` → `"BookBase — Quản lý bán sách"` |
 | B3 | `metadata.description` | `"Quản lý kho, đơn hàng và chi phí cho tiệm sách cũ"` → `"Quản lý kho, đơn hàng và chi phí cho tiệm BookBase"` |
-| B4 | Không đụng | Nav, page titles, favicon, internal labels |
+| B4 | Không đụng | page titles, favicon, internal labels |
 
 ## Thay đổi
 
