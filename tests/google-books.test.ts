@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lookupISBN } from "@/lib/google-books";
+import { lookupISBN, searchBooksByName } from "@/lib/google-books";
 
 function stubFetch(body: unknown, ok = true) {
   return async () => ({ ok, json: async () => body }) as Response;
@@ -40,5 +40,56 @@ describe("lookupISBN", () => {
   it("từ chối ISBN không hợp lệ", async () => {
     await expect(lookupISBN("1234567890123", stubFetch({ items: [] })))
       .rejects.toThrow("INVALID_ISBN");
+  });
+});
+
+describe("searchBooksByName", () => {
+  it("trả BookInfo[] khi có kết quả", async () => {
+    const books = await searchBooksByName("react", stubFetch({
+      items: [
+        {
+          volumeInfo: {
+            title: "Learning React",
+            authors: ["Alex Banks"],
+            categories: ["Computers"],
+            description: "book desc",
+            imageLinks: { thumbnail: "http://example.com/a.jpg" },
+          },
+        },
+        {
+          volumeInfo: {
+            title: "React Hooks",
+            authors: ["Eve Porcello"],
+            categories: ["Computers"],
+            description: "hooks desc",
+            imageLinks: { thumbnail: "http://example.com/b.jpg" },
+          },
+        },
+      ],
+    }));
+    expect(books).toHaveLength(2);
+    expect(books[0].title).toBe("Learning React");
+    expect(books[1].title).toBe("React Hooks");
+  });
+
+  it("trả mảng rỗng khi không có items", async () => {
+    const books = await searchBooksByName("xyznotfound", stubFetch({ items: [] }));
+    expect(books).toEqual([]);
+  });
+
+  it("trả mảng rỗng khi fetch lỗi", async () => {
+    const books = await searchBooksByName("react", stubFetch({}, false));
+    expect(books).toEqual([]);
+  });
+
+  it("bỏ qua items không có volumeInfo", async () => {
+    const books = await searchBooksByName("react", stubFetch({
+      items: [
+        { volumeInfo: { title: "Good Book", authors: ["Author"], categories: ["Cat"] } },
+        {},
+        { volumeInfo: { title: "Also Good", authors: ["B"], categories: ["C"] } },
+      ],
+    }));
+    expect(books).toHaveLength(2);
   });
 });

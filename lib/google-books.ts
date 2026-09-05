@@ -34,6 +34,39 @@ async function searchGoogleBooks(query: string, fetcher: typeof fetch = fetch): 
   };
 }
 
+export async function searchBooksByName(
+  query: string,
+  fetcher: typeof fetch = fetch,
+): Promise<BookInfo[]> {
+  if (!query.trim()) return [];
+  try {
+    const key = process.env.GOOGLE_BOOKS_API_KEY;
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}${key ? `&key=${key}` : ""}&country=VN&maxResults=8`;
+    const res = await fetcher(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.items)) return [];
+    return data.items
+      .map((item: { volumeInfo?: Record<string, unknown> }) => {
+        const info = item.volumeInfo;
+        if (!info) return null;
+        return {
+          title: (info.title as string) ?? "",
+          author: (Array.isArray(info.authors) ? info.authors.join(", ") : "") as string,
+          category: (Array.isArray(info.categories) ? info.categories[0] : "") as string,
+          thumbnail: ((info.imageLinks as Record<string, string>)?.thumbnail ?? "").replace(
+            /^http:\/\//,
+            "https://",
+          ),
+          description: (info.description as string) ?? "",
+        } as BookInfo;
+      })
+      .filter(Boolean) as BookInfo[];
+  } catch {
+    return [];
+  }
+}
+
 export async function lookupISBN(
   raw: string,
   fetcher: typeof fetch = fetch,
