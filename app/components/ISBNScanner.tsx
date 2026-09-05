@@ -6,6 +6,7 @@ import { Camera, Stop, MagnifyingGlass, Warning, Spinner } from "@phosphor-icons
 import Button from "./ui/Button";
 import { Input } from "./ui/Field";
 import Banner from "./ui/Banner";
+import BookNameSearch from "./BookNameSearch";
 
 type BookInfo = {
   title: string;
@@ -22,6 +23,7 @@ export default function ISBNScanner({
   onFound: (isbn: string, book: BookInfo) => void;
   autoStartKey?: number;
 }) {
+  const [tab, setTab] = useState<"scan" | "search">("scan");
   const [isbn, setIsbn] = useState("");
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState("");
@@ -196,76 +198,113 @@ export default function ISBNScanner({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {cameraSupported !== false && (
-          <Button
-            variant={scanning ? "secondary" : "primary"}
-            size="md"
-            onClick={() => {
-              setError("");
-              setScanning((s) => !s);
-            }}
-            iconLeft={
-              scanning ? <Stop size={14} weight="bold" /> : <Camera size={14} weight="bold" />
-            }
-          >
-            {scanning ? "Dừng quét" : "Quét barcode"}
-          </Button>
-        )}
-        <div className="relative flex flex-1 items-center gap-2">
-          <div className="relative flex-1">
-            <MagnifyingGlass
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint"
-            />
-            <Input
-              value={isbn}
-              onChange={(e) => setIsbn(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleManual()}
-              placeholder="Hoặc nhập ISBN/Barcode rồi bấm Tra"
-              className="pl-8"
-            />
-          </div>
-          <Button variant="secondary" onClick={handleManual} disabled={!isbn || looking}>
-            {looking ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Spinner size={12} /> Đang tra
-              </span>
-            ) : (
-              "Tra"
-            )}
-          </Button>
-        </div>
+      <div className="flex gap-1 rounded-lg border border-hairline bg-surface-soft p-0.5">
+        <button
+          type="button"
+          onClick={() => setTab("scan")}
+          className={`flex-1 rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+            tab === "scan"
+              ? "bg-surface text-ink shadow-xs"
+              : "text-ink-muted hover:text-ink"
+          }`}
+        >
+          Quét barcode
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("search")}
+          className={`flex-1 rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+            tab === "search"
+              ? "bg-surface text-ink shadow-xs"
+              : "text-ink-muted hover:text-ink"
+          }`}
+        >
+          Tìm theo tên
+        </button>
       </div>
 
-      {cameraSupported === false && (
-        <Banner tone="warning">
-          <span className="inline-flex items-center gap-1.5">
-            <Warning size={14} weight="bold" />
-            Thiết bị không có camera — nhập ISBN tay để tra.
-          </span>
-        </Banner>
+      {tab === "scan" && (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            {cameraSupported !== false && (
+              <Button
+                variant={scanning ? "secondary" : "primary"}
+                size="md"
+                onClick={() => {
+                  setError("");
+                  setScanning((s) => !s);
+                }}
+                iconLeft={
+                  scanning ? <Stop size={14} weight="bold" /> : <Camera size={14} weight="bold" />
+                }
+              >
+                {scanning ? "Dừng quét" : "Quét barcode"}
+              </Button>
+            )}
+            <div className="relative flex flex-1 items-center gap-2">
+              <div className="relative flex-1">
+                <MagnifyingGlass
+                  size={14}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint"
+                />
+                <Input
+                  value={isbn}
+                  onChange={(e) => setIsbn(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleManual()}
+                  placeholder="Hoặc nhập ISBN/Barcode rồi bấm Tra"
+                  className="pl-8"
+                />
+              </div>
+              <Button variant="secondary" onClick={handleManual} disabled={!isbn || looking}>
+                {looking ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Spinner size={12} /> Đang tra
+                  </span>
+                ) : (
+                  "Tra"
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {cameraSupported === false && (
+            <Banner tone="warning">
+              <span className="inline-flex items-center gap-1.5">
+                <Warning size={14} weight="bold" />
+                Thiết bị không có camera — nhập ISBN tay để tra.
+              </span>
+            </Banner>
+          )}
+
+          {scanning && cameraSupported !== false && (
+            <div className="overflow-hidden rounded-lg border border-hairline bg-black">
+              <div
+                ref={containerRef}
+                id={containerId}
+                className="mx-auto w-full max-w-md"
+                style={{ minHeight: "300px" }}
+              />
+              <p className="bg-ink px-3 py-2 text-center text-[11.5px] text-on-dark/80">
+                Hướng camera vào barcode/ISBN trên bìa sách — giữ chắc tay 5–10 giây.
+              </p>
+            </div>
+          )}
+
+          {error && <Banner tone="danger">{error}</Banner>}
+          {looking && (
+            <span className="inline-flex items-center gap-1.5 text-[12.5px] text-info">
+              <Spinner size={12} /> Đang tra cứu trên Google Books…
+            </span>
+          )}
+        </>
       )}
 
-      {scanning && cameraSupported !== false && (
-        <div className="overflow-hidden rounded-lg border border-hairline bg-black">
-          <div
-            ref={containerRef}
-            id={containerId}
-            className="mx-auto w-full max-w-md"
-            style={{ minHeight: "300px" }}
-          />
-          <p className="bg-ink px-3 py-2 text-center text-[11.5px] text-on-dark/80">
-            Hướng camera vào barcode/ISBN trên bìa sách — giữ chắc tay 5–10 giây.
-          </p>
-        </div>
-      )}
-
-      {error && <Banner tone="danger">{error}</Banner>}
-      {looking && (
-        <span className="inline-flex items-center gap-1.5 text-[12.5px] text-info">
-          <Spinner size={12} /> Đang tra cứu trên Google Books…
-        </span>
+      {tab === "search" && (
+        <BookNameSearch
+          onFound={(isbnCode, book) => {
+            onFoundRef.current(isbnCode, book);
+          }}
+        />
       )}
     </div>
   );
