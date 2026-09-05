@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MagnifyingGlass, Spinner, WarningCircle } from "@phosphor-icons/react";
+import { MagnifyingGlass, Spinner, WarningCircle, Pencil } from "@phosphor-icons/react";
 import Button from "./ui/Button";
 import { Input } from "./ui/Field";
 import Banner from "./ui/Banner";
@@ -17,6 +17,8 @@ export default function BookNameSearch({
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
+  const [manual, setManual] = useState(false);
+  const [manualForm, setManualForm] = useState({ title: "", author: "", category: "" });
 
   async function handleSearch() {
     if (!query.trim() || query.trim().length < 2) return;
@@ -31,7 +33,7 @@ export default function BookNameSearch({
       } else if (data.error === "QUERY_TOO_SHORT") {
         setError("Nhập ít nhất 2 ký tự");
       } else {
-        setError("Không tìm thấy sách nào — thử từ khóa khác");
+        setError("Không tìm thấy sách nào — thử từ khóa khác hoặc nhập tay");
       }
     } catch {
       setError("Lỗi kết nối — thử lại");
@@ -42,6 +44,17 @@ export default function BookNameSearch({
 
   function handleSelect(book: BookInfo) {
     onFound("", book);
+  }
+
+  function handleManualSubmit() {
+    if (!manualForm.title.trim()) return;
+    onFound("", {
+      title: manualForm.title.trim(),
+      author: manualForm.author.trim(),
+      category: manualForm.category.trim(),
+      thumbnail: "",
+      description: "",
+    });
   }
 
   return (
@@ -83,13 +96,57 @@ export default function BookNameSearch({
         </span>
       )}
 
-      {!searching && searched && results.length === 0 && !error && (
+      {!searching && searched && results.length === 0 && !error && !manual && (
         <Banner tone="warning">
           <span className="inline-flex items-center gap-1.5">
             <WarningCircle size={14} weight="bold" />
-            Không tìm thấy sách nào — thử từ khóa khác.
+            Không tìm thấy sách nào — thử từ khóa khác hoặc nhập tay.
           </span>
         </Banner>
+      )}
+
+      {!searching && !manual && (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setManual(true)}
+          iconLeft={<Pencil size={12} weight="bold" />}
+        >
+          Nhập thủ công
+        </Button>
+      )}
+
+      {manual && (
+        <form
+          onSubmit={(e) => { e.preventDefault(); handleManualSubmit(); }}
+          className="space-y-2 rounded-lg border border-hairline bg-surface p-3"
+        >
+          <p className="text-[12.5px] font-medium text-ink-muted">Nhập thông tin sách thủ công:</p>
+          <Input
+            value={manualForm.title}
+            onChange={(e) => setManualForm((f) => ({ ...f, title: e.target.value }))}
+            placeholder="Tên sách (bắt buộc)"
+            required
+          />
+          <Input
+            value={manualForm.author}
+            onChange={(e) => setManualForm((f) => ({ ...f, author: e.target.value }))}
+            placeholder="Tác giả"
+          />
+          <Input
+            value={manualForm.category}
+            onChange={(e) => setManualForm((f) => ({ ...f, category: e.target.value }))}
+            placeholder="Phân loại"
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" type="button" onClick={() => setManual(false)}>
+              Hủy
+            </Button>
+            <Button variant="primary" size="sm" type="submit" disabled={!manualForm.title.trim()}>
+              Tiếp tục
+            </Button>
+          </div>
+        </form>
       )}
 
       {results.length > 0 && (
