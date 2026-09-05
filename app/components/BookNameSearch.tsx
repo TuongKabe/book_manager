@@ -5,14 +5,7 @@ import { MagnifyingGlass, Spinner, WarningCircle } from "@phosphor-icons/react";
 import Button from "./ui/Button";
 import { Input } from "./ui/Field";
 import Banner from "./ui/Banner";
-
-type BookInfo = {
-  title: string;
-  author: string;
-  category: string;
-  thumbnail: string;
-  description: string;
-};
+import type { BookInfo } from "@/lib/google-books";
 
 export default function BookNameSearch({
   onFound,
