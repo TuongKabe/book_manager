@@ -7,14 +7,7 @@ import Button from "./ui/Button";
 import { Input } from "./ui/Field";
 import Banner from "./ui/Banner";
 import BookNameSearch from "./BookNameSearch";
-
-type BookInfo = {
-  title: string;
-  author: string;
-  category: string;
-  thumbnail: string;
-  description: string;
-};
+import type { BookInfo } from "@/lib/google-books";
 
 export default function ISBNScanner({
   onFound,
