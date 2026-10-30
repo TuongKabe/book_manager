@@ -7,7 +7,7 @@ import Banner from "@/app/components/ui/Banner";
 
 const SAMPLE = "Tiêu đề,ISBN,Tác giả,Phân loại,Tình trạng,Giá nhập (đ),Giá bán (đ),Trạng thái,Ghi chú\r\nSách ví dụ,9786040000002,Nguyễn Văn A,Văn học,GOOD,25000,45000,INTAKE,\r\n";
 
-export default function BookCsvImport({ onImported }: { onImported: () => void }) {
+export default function BookCsvImport({ onImported }: { onImported?: () => void }) {
   const [books, setBooks] = useState<ImportBook[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,7 +43,7 @@ export default function BookCsvImport({ onImported }: { onImported: () => void }
       } else {
         setMessage(`Đã nhập mới ${result.imported} cuốn.${result.previouslyImported ? ` ${result.previouslyImported} cuốn đã được ghi từ lần gửi trước, không nhập trùng.` : ""}`);
         setBooks([]); setFileName(""); setRequestId("");
-        onImported();
+        onImported?.();
       }
     } catch {
       setErrors(["Mất kết nối khi import. Kiểm tra kho trước khi thử lại để tránh nhập trùng."]);
