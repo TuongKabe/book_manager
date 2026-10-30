@@ -389,7 +389,7 @@ export default function PurchaseModal({
             Thêm sách vào lô
           </legend>
           <div className="rounded-md border border-hairline bg-surface-soft p-3">
-            <ISBNScanner onFound={handleScan} autoStartKey={scanKey} />
+            <ISBNScanner onFound={handleScan} autoStartKey={scanKey} onManual={(code) => handleScan(code, { title: "", author: "", category: "", thumbnail: "", description: "" })} />
           </div>
         </fieldset>
 
