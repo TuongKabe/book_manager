@@ -1,4 +1,5 @@
-import { normalizeIsbn } from "@/lib/isbn";
+import { isValidIsbn, normalizeIsbn } from "@/lib/isbn";
+import { mapCategory } from "@/lib/categories";
 
 export type BookInfo = {
   title: string;
@@ -18,15 +19,18 @@ function isbn10ToIsbn13(isbn10: string): string {
 async function searchGoogleBooks(query: string, fetcher: typeof fetch = fetch): Promise<BookInfo | null> {
   const key = process.env.GOOGLE_BOOKS_API_KEY;
   const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}${key ? `&key=${key}` : ""}&country=VN&maxResults=1`;
-  const res = await fetcher(url);
-  if (!res.ok) return null;
-  const data = await res.json();
-  const info = data?.items?.[0]?.volumeInfo;
+  let info;
+  try {
+    const res = await fetcher(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    info = data?.items?.[0]?.volumeInfo;
+  } catch { return null; }
   if (!info) return null;
   return {
     title: info.title ?? "",
     author: info.authors?.join(", ") ?? "",
-    category: info.categories?.[0] ?? "",
+    category: mapCategory(info.categories?.[0]),
     thumbnail: info.imageLinks?.thumbnail
       ? info.imageLinks.thumbnail.replace(/^http:\/\//, "https://")
       : "",
@@ -53,7 +57,7 @@ export async function searchBooksByName(
         return {
           title: (info.title as string) ?? "",
           author: (Array.isArray(info.authors) ? info.authors.join(", ") : "") as string,
-          category: (Array.isArray(info.categories) ? info.categories[0] : "") as string,
+          category: mapCategory((Array.isArray(info.categories) ? info.categories[0] : "") as string),
           thumbnail: ((info.imageLinks as Record<string, string>)?.thumbnail ?? "").replace(
             /^http:\/\//,
             "https://",
@@ -67,25 +71,44 @@ export async function searchBooksByName(
   }
 }
 
+
+// Try a second catalogue when Google Books cannot match a valid ISBN.
+async function searchOpenLibrary(isbn: string, fetcher: typeof fetch): Promise<BookInfo | null> {
+  try {
+    const res = await fetcher(`https://openlibrary.org/isbn/${encodeURIComponent(isbn)}.json`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (typeof data?.title !== "string" || !data.title.trim()) return null;
+    const coverId = Array.isArray(data.covers) && Number.isSafeInteger(data.covers[0]) && data.covers[0] > 0 ? data.covers[0] : null;
+    return {
+      title: data.title.trim(),
+      author: "",
+      category: "Khác",
+      thumbnail: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg` : "",
+      description: typeof data.description === "string" ? data.description : (data.description?.value ?? ""),
+    };
+  } catch { return null; }
+}
+
 export async function lookupISBN(
   raw: string,
   fetcher: typeof fetch = fetch,
 ): Promise<BookInfo | null> {
   const isbn = normalizeIsbn(raw);
+  if (!isValidIsbn(isbn)) throw new Error("INVALID_ISBN");
 
   if (/^\d{13}$/.test(isbn)) {
     const book = await searchGoogleBooks(`isbn:${isbn}`, fetcher);
     if (book) return book;
-    if (isbn.startsWith("978") || isbn.startsWith("979")) return null;
-    return searchGoogleBooks(`isbn:${isbn}`, fetcher);
+    return searchOpenLibrary(isbn, fetcher);
   }
 
-  if (/^\d{10}$/.test(isbn)) {
+  if (/^\d{9}[\dX]$/.test(isbn)) {
     const isbn13 = isbn10ToIsbn13(isbn);
     const book = await searchGoogleBooks(`isbn:${isbn13}`, fetcher);
     if (book) return book;
-    return await searchGoogleBooks(`isbn:${isbn}`, fetcher);
+    return (await searchGoogleBooks(`isbn:${isbn}`, fetcher)) ?? searchOpenLibrary(isbn, fetcher);
   }
 
-  return await searchGoogleBooks(isbn, fetcher);
+  return null;
 }
