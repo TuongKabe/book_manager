@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Plus, Book } from "@phosphor-icons/react";
 import ISBNScanner from "./ISBNScanner";
 import { toDateInputValue } from "@/lib/date";
@@ -76,6 +76,7 @@ export default function PurchaseModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [scanKey, setScanKey] = useState(0);
+  const editRequestId = useRef<string | null>(null);
 
   const remainingExisting = existingBooks.filter((b) => !removedIds.includes(b.id));
   const totalBookCount = remainingExisting.length + newBooks.length;
@@ -141,6 +142,7 @@ export default function PurchaseModal({
 
     try {
       if (isEdit && initialPurchase) {
+        editRequestId.current ??= crypto.randomUUID();
         const patchRes = await fetch(`/api/purchases/${initialPurchase.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -150,50 +152,17 @@ export default function PurchaseModal({
             totalCost: batch.totalCost ? Number(batch.totalCost) : 0,
             weightGrams: batch.weightGrams ? Number(batch.weightGrams) : null,
             note: batch.note || null,
+            removedBookIds: removedIds,
+            newBooks,
+            requestId: editRequestId.current,
           }),
         });
         if (!patchRes.ok) {
           const data = await patchRes.json().catch(() => ({}));
           setError(data.error ?? "Lỗi cập nhật lô");
-          setSaving(false);
           return;
         }
-
-        for (const id of removedIds) {
-          await fetch(`/api/books/${id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ purchaseId: null }),
-          });
-        }
-
-        const totalCostNum = Number(batch.totalCost) || 0;
-        const weightGramsNum = Number(batch.weightGrams) || 0;
-        const numNew = newBooks.length;
-        const perBookCost = numNew > 0 ? Math.floor(totalCostNum / totalBookCount) : 0;
-        const perBookWeight =
-          numNew > 0 && weightGramsNum > 0 ? Math.floor(weightGramsNum / totalBookCount) : null;
-
-        for (const book of newBooks) {
-          await fetch(`/api/books`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              isbn: book.isbn,
-              title: book.title,
-              author: book.author || null,
-              category: book.category || null,
-              condition: book.condition,
-              coverPhotoUrl: book.coverPhotoUrl || null,
-              purchaseId: initialPurchase.id,
-              purchaseCostVnd: perBookCost,
-              weightGrams: perBookWeight,
-              status: "LISTED",
-            }),
-          });
-        }
-
-        const updated = await fetch(`/api/purchases/${initialPurchase.id}`).then((r) => r.json());
+        const updated = await patchRes.json();
         onSaved({ ...updated, books: updated.books ?? [] });
         resetAndClose();
       } else {
@@ -220,8 +189,9 @@ export default function PurchaseModal({
       }
     } catch {
       setError("Lỗi kết nối — thử lại");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   function resetAndClose() {
@@ -237,6 +207,7 @@ export default function PurchaseModal({
     setNewBooks([]);
     setCurrentBook(null);
     setError("");
+    editRequestId.current = null;
     onClose();
   }
 
