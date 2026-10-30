@@ -27,7 +27,7 @@ describe("GET /api/lookup", () => {
 
   it("trả ok:false khi không match", async () => {
     mockedLookupISBN.mockResolvedValue(null);
-    const res = await GET(req("9786042000011"));
+    const res = await GET(req("9786042000017"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: false, error: "NO_ISBN_MATCH" });
   });
