@@ -31,6 +31,10 @@ export default function SpeedScanner() {
           Quét ISBN
         </div>
         <ISBNScanner
+          onManual={(code) => {
+            setIsbn(code);
+            setBook({ title: "", author: "", category: "", thumbnail: "", description: "" });
+          }}
           onFound={(code, info) => {
             setIsbn(code);
             setBook(info);
