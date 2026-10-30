@@ -5,7 +5,7 @@ import { parseBookCsv, type ImportBook } from "@/lib/book-import";
 import Button from "@/app/components/ui/Button";
 import Banner from "@/app/components/ui/Banner";
 
-const SAMPLE = "Tiêu đề,ISBN,Tác giả,Phân loại,Tình trạng,Giá nhập (đ),Giá bán (đ),Trạng thái,Ghi chú\r\nSách ví dụ,9786040000000,Nguyễn Văn A,Văn học,GOOD,25000,45000,INTAKE,\r\n";
+const SAMPLE = "Tiêu đề,ISBN,Tác giả,Phân loại,Tình trạng,Giá nhập (đ),Giá bán (đ),Trạng thái,Ghi chú\r\nSách ví dụ,9786040000002,Nguyễn Văn A,Văn học,GOOD,25000,45000,INTAKE,\r\n";
 
 export default function BookCsvImport({ onImported }: { onImported: () => void }) {
   const [books, setBooks] = useState<ImportBook[]>([]);
