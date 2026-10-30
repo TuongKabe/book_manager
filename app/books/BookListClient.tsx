@@ -12,6 +12,7 @@ import {
   Coins,
   Receipt,
   Broom,
+  FileArrowUp,
 } from "@phosphor-icons/react";
 import BookEditForm from "./BookEditForm";
 import BookCsvImport from "./BookCsvImport";
@@ -230,6 +231,7 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
       <PageHeader
         title="Kho sách"
         description="Toàn bộ sách đang có trong kho, đang bán và đã bán."
+        primaryAction={{ label: "Import CSV", href: "/books/import", icon: <FileArrowUp size={16} weight="bold" /> }}
         toolbar={
           <Button
             variant="secondary"
