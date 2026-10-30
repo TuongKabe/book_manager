@@ -31,7 +31,7 @@ describe("POST /api/books/import", () => {
     const books = [{ title: "Copy 1", isbn: "9786041234567" }, { title: "Copy 2", isbn: "9786041234567" }];
     const first = await POST(request(books));
     expect(first.status).toBe(201);
-    const options = createMany.mock.calls[0][0];
+    const options = createMany.mock.calls[0]![0]!;
     expect(options.skipDuplicates).toBe(true);
     expect(options.data).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: `import-${requestId}-1`, title: "Copy 1" }),
@@ -40,6 +40,6 @@ describe("POST /api/books/import", () => {
     createMany.mockResolvedValueOnce({ count: 0 });
     const retry = await POST(request(books));
     expect(await retry.json()).toEqual({ imported: 0, previouslyImported: 2 });
-    expect(createMany.mock.calls[1][0].data).toEqual(options.data);
+    expect(createMany.mock.calls[1]![0]!.data).toEqual(options.data);
   });
 });
