@@ -118,8 +118,8 @@ export default function PurchaseModal({
     setRemovedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
   }
 
-  function removeNewBook(isbn: string) {
-    setNewBooks((prev) => prev.filter((b) => b.isbn !== isbn));
+  function removeNewBook(index: number) {
+    setNewBooks((prev) => prev.filter((_, i) => i !== index));
   }
 
   function clearAll() {
@@ -374,7 +374,7 @@ export default function PurchaseModal({
                       {b.isbn ?? "—"} · {b.condition}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => removeNewBook(b.isbn)}>
+                  <Button variant="ghost" size="sm" onClick={() => removeNewBook(i)}>
                     Xóa
                   </Button>
                 </li>
