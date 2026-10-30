@@ -13,10 +13,12 @@ export default function BookCsvImport({ onImported }: { onImported: () => void }
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [fileName, setFileName] = useState("");
+  const [requestId, setRequestId] = useState("");
 
   async function openFile(file?: File) {
     setBooks([]); setErrors([]); setMessage("");
     setFileName(file?.name ?? "");
+    setRequestId(file ? crypto.randomUUID() : "");
     if (!file) return;
     if (!/\.csv$/i.test(file.name) || file.size > 2_000_000) {
       setErrors(["Chọn tệp .csv tối đa 2 MB (UTF-8). Nếu đang dùng Excel, lưu thành CSV UTF-8."]);
@@ -33,14 +35,14 @@ export default function BookCsvImport({ onImported }: { onImported: () => void }
       const response = await fetch("/api/books/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ books }),
+        body: JSON.stringify({ books, requestId }),
       });
       const result = await response.json();
       if (!response.ok) {
         setErrors(result.errors ?? [result.error ?? "Import thất bại"]);
       } else {
-        setMessage(`Đã nhập thành công ${result.imported} cuốn.`);
-        setBooks([]); setFileName("");
+        setMessage(`Đã nhập mới ${result.imported} cuốn.${result.previouslyImported ? ` ${result.previouslyImported} cuốn đã được ghi từ lần gửi trước, không nhập trùng.` : ""}`);
+        setBooks([]); setFileName(""); setRequestId("");
         onImported();
       }
     } catch {
