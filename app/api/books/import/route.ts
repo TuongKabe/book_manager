@@ -10,6 +10,9 @@ export async function POST(req: Request) {
   if (!data || !Array.isArray(data.books) || data.books.length < 1 || data.books.length > MAX_IMPORT_BOOKS) {
     return NextResponse.json({ error: "Cần từ 1 đến 500 sách" }, { status: 400 });
   }
+  if (typeof data.requestId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data.requestId)) {
+    return NextResponse.json({ error: "Mã phiên import không hợp lệ" }, { status: 400 });
+  }
   const books: ImportBook[] = [];
   const errors: string[] = [];
   for (const [i, raw] of data.books.entries()) {
@@ -18,8 +21,11 @@ export async function POST(req: Request) {
   }
   if (errors.length) return NextResponse.json({ error: "Dữ liệu không hợp lệ", errors }, { status: 400 });
   try {
-    const inserted = await prisma.book.createMany({ data: books });
-    return NextResponse.json({ imported: inserted.count }, { status: 201 });
+    const inserted = await prisma.book.createMany({
+      data: books.map((book, i) => ({ ...book, id: `import-${data.requestId}-${i + 1}` })),
+      skipDuplicates: true,
+    });
+    return NextResponse.json({ imported: inserted.count, previouslyImported: books.length - inserted.count }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Không thể lưu sách. Kiểm tra kết nối cơ sở dữ liệu rồi thử lại." }, { status: 500 });
   }
