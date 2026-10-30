@@ -1,11 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import PageHeader from "@/app/components/ui/PageHeader";
 import BookCsvImport from "@/app/books/BookCsvImport";
-
-export const metadata = {
-  title: "Import CSV | BookBase",
-  description: "Nhập hàng loạt sách từ tệp CSV, xem trước và kiểm tra lỗi dữ liệu",
-};
 
 export default function BookImportPage() {
   return (
