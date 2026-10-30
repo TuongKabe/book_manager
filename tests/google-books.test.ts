@@ -28,7 +28,7 @@ describe("lookupISBN", () => {
   });
 
   it("trả null khi không có items", async () => {
-    const book = await lookupISBN("9786042000011", stubFetch({ items: [] }));
+    const book = await lookupISBN("9786042000017", stubFetch({ items: [] }));
     expect(book).toBeNull();
   });
 
