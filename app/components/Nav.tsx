@@ -9,6 +9,7 @@ import {
   Archive,
   ShoppingBag,
   Receipt,
+  FileArrowUp,
   SignOut,
   Question,
 } from "@phosphor-icons/react";
@@ -17,9 +18,10 @@ import type { IconProps } from "@phosphor-icons/react";
 
 type IconCmp = ComponentType<IconProps>;
 
-const items: { href: string; label: string; icon: IconCmp }[] = [
+const items: { href: string; label: string; icon: IconCmp; mobile?: boolean }[] = [
   { href: "/", label: "Tổng quan", icon: House },
   { href: "/books", label: "Kho sách", icon: Books },
+  { href: "/books/import", label: "Import CSV", icon: FileArrowUp, mobile: false },
   { href: "/scan", label: "Nhập nhanh", icon: Camera },
   { href: "/purchases", label: "Nhập hàng", icon: Archive },
   { href: "/orders", label: "Bán hàng", icon: ShoppingBag },
@@ -122,7 +124,7 @@ export default function Nav() {
         className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-hairline bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
         aria-label="Điều hướng chính (mobile)"
       >
-        {items.map((item) => {
+        {items.filter((item) => item.mobile !== false).map((item) => {
           const active = isActive(pathname, item.href);
           const Icon = item.icon;
           return (
