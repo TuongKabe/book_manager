@@ -14,6 +14,7 @@ import {
   Broom,
 } from "@phosphor-icons/react";
 import BookEditForm from "./BookEditForm";
+import BookCsvImport from "./BookCsvImport";
 import PageHeader from "@/app/components/ui/PageHeader";
 import StatTile from "@/app/components/ui/StatTile";
 import EmptyState from "@/app/components/ui/EmptyState";
@@ -240,6 +241,8 @@ export default function BookListClient({ initialBooks }: { initialBooks: BookRow
           </Button>
         }
       />
+
+      <BookCsvImport onImported={() => fetchBooks(q, status)} />
 
       {error && <Banner tone="danger">{error}</Banner>}
       {notice && <Banner tone="success">{notice}</Banner>}

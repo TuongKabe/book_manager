@@ -12,9 +12,11 @@ import type { BookInfo } from "@/lib/google-books";
 export default function ISBNScanner({
   onFound,
   autoStartKey = 0,
+  onManual,
 }: {
   onFound: (isbn: string, book: BookInfo) => void;
   autoStartKey?: number;
+  onManual?: (isbn: string) => void;
 }) {
   const [tab, setTab] = useState<"scan" | "search">("scan");
   const [isbn, setIsbn] = useState("");
@@ -71,7 +73,7 @@ export default function ISBNScanner({
       } else if (res.status === 400) {
         setError("ISBN không hợp lệ");
       } else {
-        setError("Không tìm thấy trên Google Books — nhập tay hoặc thử ISBN khác");
+        setError("Không tìm thấy trên Google Books. Có thể nhập tay và giữ lại ISBN.");
       }
     } catch {
       setError("Lỗi kết nối — thử lại");
@@ -283,7 +285,7 @@ export default function ISBNScanner({
             </div>
           )}
 
-          {error && <Banner tone="danger">{error}</Banner>}
+          {error && <Banner tone="warning">{error}{onManual && <button type="button" onClick={() => { onManual(isbn); setError(""); }} className="ml-2 font-semibold underline">Nhập tay sách này</button>}</Banner>}
           {looking && (
             <span className="inline-flex items-center gap-1.5 text-[12.5px] text-info">
               <Spinner size={12} /> Đang tra cứu trên Google Books…

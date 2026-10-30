@@ -8,12 +8,13 @@ describe("isbn", () => {
   });
 
   it("chấp nhận ISBN13 hợp lệ prefix 978/979", () => {
-    expect(isValidIsbn("9786042000011")).toBe(true);
-    expect(isValidIsbn("9791000000000")).toBe(true);
+    expect(isValidIsbn("9786042000017")).toBe(true);
+    expect(isValidIsbn("9791000000008")).toBe(true);
   });
 
   it("từ chối ISBN không hợp lệ", () => {
     expect(isValidIsbn("1234567890123")).toBe(false);
+    expect(isValidIsbn("9786042000011")).toBe(false);
     expect(isValidIsbn("978604200001")).toBe(false);
     expect(isValidIsbn("abc")).toBe(false);
     expect(isValidIsbn("")).toBe(false);
